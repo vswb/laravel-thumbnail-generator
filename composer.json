@@ -6,7 +6,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Dev\\ThumbnailGenerator\\": "src/"
+            "Platform\\ThumbnailGenerator\\": "src/"
         }
     },
     "config": {
@@ -15,10 +15,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Dev\\ThumbnailGenerator\\Providers\\ThumbnailGeneratorServiceProvider"
+                "Platform\\ThumbnailGenerator\\Providers\\ThumbnailGeneratorServiceProvider"
             ],
             "aliases": {
-                "ThumbnailMedia": "Dev\\ThumbnailGenerator\\Facades\\ThumbnailMediaFacade"
+                "ThumbnailMedia": "Platform\\ThumbnailGenerator\\Facades\\ThumbnailMediaFacade"
             }
         }
     },
