@@ -1,8 +1,8 @@
 <?php
 
-namespace Platform\ThumbnailGenerator\Facades;
+namespace Dev\ThumbnailGenerator\Facades;
 
-use Platform\ThumbnailGenerator\ThumbnailMedia;
+use Dev\ThumbnailGenerator\ThumbnailMedia;
 use Illuminate\Support\Facades\Facade;
 
 class ThumbnailMediaFacade extends Facade

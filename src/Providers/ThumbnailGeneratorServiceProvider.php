@@ -1,26 +1,24 @@
 <?php
 
-namespace Platform\ThumbnailGenerator\Providers;
+namespace Dev\ThumbnailGenerator\Providers;
 
 use Illuminate\Foundation\AliasLoader;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
-use Illuminate\Support\ServiceProvider;
 
-use Platform\Base\Facades\DashboardMenu;
-use Platform\Base\Facades\PanelSectionManager;
-use Platform\Base\PanelSections\PanelSectionItem;
-use Platform\Setting\PanelSections\SettingCommonPanelSection;
-use Platform\Kernel\Traits\LoadAndPublishDataTrait;
-use Platform\Media\RvMedia as AppMedia;
-use Platform\Media\Repositories\Interfaces\MediaFileInterface;
-use Platform\Media\Repositories\Interfaces\MediaFolderInterface;
-use Platform\Media\Services\UploadsManager;
-use Platform\Media\Services\ThumbnailService;
-use Platform\ThumbnailGenerator\Facades\ThumbnailMediaFacade;
-use Platform\ThumbnailGenerator\ThumbnailMedia;
+use Dev\Base\Facades\DashboardMenu;
+use Dev\Base\Facades\PanelSectionManager;
+use Dev\Base\PanelSections\PanelSectionItem;
+use Dev\Base\Supports\ServiceProvider;
+use Dev\Setting\PanelSections\SettingCommonPanelSection;
+use Dev\Kernel\Traits\LoadAndPublishDataTrait;
+use Dev\Media\AppMedia;
+use Dev\Media\Services\UploadsManager;
+use Dev\Media\Services\ThumbnailService;
+use Dev\ThumbnailGenerator\Facades\ThumbnailMediaFacade;
+use Dev\ThumbnailGenerator\ThumbnailMedia;
 
 class ThumbnailGeneratorServiceProvider extends ServiceProvider
 {
@@ -31,16 +29,11 @@ class ThumbnailGeneratorServiceProvider extends ServiceProvider
         // Bind ThumbnailMedia as singleton so facade can resolve it
         $this->app->singleton(ThumbnailMedia::class, function ($app) {
             return new ThumbnailMedia(
-                $app->make(MediaFileInterface::class),
-                $app->make(MediaFolderInterface::class),
                 $app->make(UploadsManager::class),
                 $app->make(ThumbnailService::class)
             );
         });
 
-        /** 
-         * @note các em chú ý: đây là cách rebind AppMedia để sử dụng ThumbnailMedia, 
-         * thay vì sửa trực tiếp AppMedia core của Platform*/
         $this->app->singleton(AppMedia::class, function ($app) {
             return $app->make(ThumbnailMedia::class);
         });
@@ -53,7 +46,7 @@ class ThumbnailGeneratorServiceProvider extends ServiceProvider
     public function boot()
     {
         $this
-            ->setNamespace('packages/thumbnail-generator')
+            ->setNamespace('libs/thumbnail-generator')
             ->loadRoutes()
             ->loadAndPublishTranslations()
             ->loadMigrations()
@@ -76,7 +69,7 @@ class ThumbnailGeneratorServiceProvider extends ServiceProvider
 
     public function handleSetMaxFileSize($value, $ext)
     {
-        $allowedMimeTypes = explode(',', app(AppMedia::class)->getConfig('allowed_mime_types'));
+        $allowedMimeTypes = explode(',', AppMedia::getConfig('allowed_mime_types'));
         if (in_array($ext, $allowedMimeTypes)) {
             $mimeTypes = get_max_mimesizes();
             $mime = $mimeTypes->firstWhere('type', $ext);
@@ -89,6 +82,6 @@ class ThumbnailGeneratorServiceProvider extends ServiceProvider
 
     public function renderSetting($template)
     {
-        return $template . view('packages/thumbnail-generator::settings')->render();
+        return $template . view('libs/thumbnail-generator::settings')->render();
     }
 }
