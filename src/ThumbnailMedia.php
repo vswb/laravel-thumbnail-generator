@@ -99,235 +99,235 @@ class ThumbnailMedia extends AppMedia
     //     return $this->url($url);
     // }
 
-    // /**
-    //  * @param string|null $path
-    //  * @return string
-    //  */
-    // public function url(?string $path): string
-    // {
-    //     $path = $path ? trim($path) : $path;
+    /**
+     * @param string|null $path
+     * @return string
+     */
+    public function url(?string $path): string
+    {
+        $path = $path ? trim($path) : $path;
 
-    //     // Handle null or empty path
-    //     if (empty($path)) {
-    //         return Storage::url('');
-    //     }
+        // Handle null or empty path
+        if (empty($path)) {
+            return Storage::url('');
+        }
 
-    //     // Return external URLs as-is
-    //     if (Str::contains($path, 'https://') || Str::contains($path, 'http://')) {
-    //         return $path;
-    //     }
+        // Return external URLs as-is
+        if (Str::contains($path, 'https://') || Str::contains($path, 'http://')) {
+            return $path;
+        }
 
-    //     // Prefer .webp if exists for jpg/jpeg/png (better compression & performance)
-    //     if (!empty($path)) {
-    //         [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
-    //         $ext = strtolower(pathinfo($purePath, PATHINFO_EXTENSION));
+        // Prefer .webp if exists for jpg/jpeg/png (better compression & performance)
+        if (!empty($path)) {
+            [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
+            $ext = strtolower(pathinfo($purePath, PATHINFO_EXTENSION));
 
-    //         if (in_array($ext, ['jpg', 'jpeg', 'png'], true)) {
-    //             $webpPath = substr($purePath, 0, -strlen($ext)) . 'webp';
+            if (in_array($ext, ['jpg', 'jpeg', 'png'], true)) {
+                $webpPath = substr($purePath, 0, -strlen($ext)) . 'webp';
 
-    //             if (Storage::exists($webpPath)) {
-    //                 $path = $webpPath . ($query ? ('?' . $query) : '');
-    //             }
-    //         }
-    //     }
+                if (Storage::exists($webpPath)) {
+                    $path = $webpPath . ($query ? ('?' . $query) : '');
+                }
+            }
+        }
 
-    //     // DigitalOcean Spaces CDN support
-    //     if (config('filesystems.default') === 'do_spaces' && (int)setting('media_do_spaces_cdn_enabled')) {
-    //         $customDomain = setting('media_do_spaces_cdn_custom_domain');
+        // DigitalOcean Spaces CDN support
+        if (config('filesystems.default') === 'do_spaces' && (int)setting('media_do_spaces_cdn_enabled')) {
+            $customDomain = setting('media_do_spaces_cdn_custom_domain');
 
-    //         if ($customDomain) {
-    //             return $customDomain . '/' . ltrim($path, '/');
-    //         }
+            if ($customDomain) {
+                return $customDomain . '/' . ltrim($path, '/');
+            }
 
-    //         return str_replace('.digitaloceanspaces.com', '.cdn.digitaloceanspaces.com', Storage::url($path));
-    //     }
+            return str_replace('.digitaloceanspaces.com', '.cdn.digitaloceanspaces.com', Storage::url($path));
+        }
 
-    //     // Nếu path có query params (từ getImageUrl), redirect đến resize endpoint
-    //     // Ví dụ: storage/news/image.jpg?w=300&h=200 → /resize/storage/news/image.jpg?w=300&h=200
-    //     if (Str::contains($path, '?')) {
-    //         // Tách path và query để xử lý riêng
-    //         [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
-            
-    //         // Kiểm tra xem path đã có /resize/ chưa để tránh loop
-    //         if (Str::contains($purePath, '/resize/')) {
-    //             // Đã có /resize/, chỉ cần return Storage::url với query
-    //             return Storage::url($path);
-    //         }
-            
-    //         // Chỉ thay thế nếu path bắt đầu bằng storage/
-    //         if (Str::startsWith($purePath, 'storage/') || Str::startsWith($purePath, '/storage/')) {
-    //             $resizePath = str_replace(['storage/', '/storage/'], ['resize/storage/', '/resize/storage/'], $purePath);
-    //             $resizeUrl = Storage::url($resizePath);
-                
-    //             // Thêm query params vào URL
-    //             return $resizeUrl . ($query ? ('?' . $query) : '');
-    //         }
-    //     }
+        // Nếu path có query params (từ getImageUrl), redirect đến resize endpoint
+        // Ví dụ: storage/news/image.jpg?w=300&h=200 → /resize/storage/news/image.jpg?w=300&h=200
+        if (Str::contains($path, '?')) {
+            // Tách path và query để xử lý riêng
+            [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
 
-    //     return Storage::url($path);
-    // }
+            // Kiểm tra xem path đã có /resize/ chưa để tránh loop
+            if (Str::contains($purePath, '/resize/')) {
+                // Đã có /resize/, chỉ cần return Storage::url với query
+                return Storage::url($path);
+            }
 
-    // /**
-    //  * @param UploadedFile $fileUpload
-    //  * @param int $folderId
-    //  * @param string|null $folderSlug
-    //  * @param bool $skipValidation
-    //  * @return JsonResponse|array
-    //  */
-    // public function handleUpload(
-    //     $fileUpload,
-    //     $folderId = 0,
-    //     $folderSlug = null,
-    //     $skipValidation = false
-    // ): array {
-    //     $request = request();
+            // Chỉ thay thế nếu path bắt đầu bằng storage/
+            if (Str::startsWith($purePath, 'storage/') || Str::startsWith($purePath, '/storage/')) {
+                $resizePath = str_replace(['storage/', '/storage/'], ['resize/storage/', '/resize/storage/'], $purePath);
+                $resizeUrl = Storage::url($resizePath);
 
-    //     if ($request->input('path')) {
-    //         $folderId = $this->handleTargetFolder($folderId, $request->input('path'));
-    //     }
+                // Thêm query params vào URL
+                return $resizeUrl . ($query ? ('?' . $query) : '');
+            }
+        }
 
-    //     if (!$fileUpload) {
-    //         return [
-    //             'error'   => true,
-    //             'message' => trans('core/media::media.can_not_detect_file_type'),
-    //         ];
-    //     }
+        return Storage::url($path);
+    }
 
-    //     $allowedMimeTypes = $this->getConfig('allowed_mime_types');
+    /**
+     * @param UploadedFile $fileUpload
+     * @param int $folderId
+     * @param string|null $folderSlug
+     * @param bool $skipValidation
+     * @return JsonResponse|array
+     */
+    public function handleUpload(
+        $fileUpload,
+        $folderId = 0,
+        $folderSlug = null,
+        $skipValidation = false
+    ): array {
+        $request = request();
 
-    //     if (!$this->isChunkUploadEnabled()) {
-    //         $request->merge(['uploaded_file' => $fileUpload]);
+        if ($request->input('path')) {
+            $folderId = $this->handleTargetFolder($folderId, $request->input('path'));
+        }
 
-    //         if (!$skipValidation) {
-    //             $validator = Validator::make($request->all(), [
-    //                 'uploaded_file' => 'required|mimes:' . $allowedMimeTypes,
-    //             ]);
+        if (!$fileUpload) {
+            return [
+                'error'   => true,
+                'message' => trans('core/media::media.can_not_detect_file_type'),
+            ];
+        }
 
-    //             if ($validator->fails()) {
-    //                 return [
-    //                     'error'   => true,
-    //                     'message' => $validator->getMessageBag()->first(),
-    //                 ];
-    //             }
-    //         }
+        $allowedMimeTypes = $this->getConfig('allowed_mime_types');
 
-    //         $request->offsetUnset('uploaded_file');
+        if (!$this->isChunkUploadEnabled()) {
+            $request->merge(['uploaded_file' => $fileUpload]);
+
+            if (!$skipValidation) {
+                $validator = Validator::make($request->all(), [
+                    'uploaded_file' => 'required|mimes:' . $allowedMimeTypes,
+                ]);
+
+                if ($validator->fails()) {
+                    return [
+                        'error'   => true,
+                        'message' => $validator->getMessageBag()->first(),
+                    ];
+                }
+            }
+
+            $request->offsetUnset('uploaded_file');
 
 
-    //         $maxSize = apply_filters('handle_filter_value_maxsize', $this->getServerConfigMaxUploadFileSize(), $fileUpload->getClientOriginalExtension());
+            $maxSize = apply_filters('handle_filter_value_maxsize', $this->getServerConfigMaxUploadFileSize(), $fileUpload->getClientOriginalExtension());
 
-    //         if ($fileUpload->getSize() / 1024 > (int)$maxSize) {
-    //             return [
-    //                 'error'   => true,
-    //                 'message' => trans('core/media::media.file_too_big', ['size' => human_file_size($maxSize)]),
-    //             ];
-    //         }
-    //     }
+            if ($fileUpload->getSize() / 1024 > (int)$maxSize) {
+                return [
+                    'error'   => true,
+                    'message' => trans('core/media::media.file_too_big', ['size' => human_file_size($maxSize)]),
+                ];
+            }
+        }
 
-    //     try {
-    //         $file = $this->fileRepository->getModel();
+        try {
+            $file = $this->fileRepository->getModel();
 
-    //         $fileExtension = $fileUpload->getClientOriginalExtension();
+            $fileExtension = $fileUpload->getClientOriginalExtension();
 
-    //         if (!$skipValidation && !in_array(strtolower($fileExtension), explode(',', $allowedMimeTypes))) {
-    //             return [
-    //                 'error'   => true,
-    //                 'message' => trans('core/media::media.can_not_detect_file_type'),
-    //             ];
-    //         }
+            if (!$skipValidation && !in_array(strtolower($fileExtension), explode(',', $allowedMimeTypes))) {
+                return [
+                    'error'   => true,
+                    'message' => trans('core/media::media.can_not_detect_file_type'),
+                ];
+            }
 
-    //         if ($folderId == 0 && !empty($folderSlug)) {
-    //             $folder = $this->folderRepository->getFirstBy(['slug' => $folderSlug]);
+            if ($folderId == 0 && !empty($folderSlug)) {
+                $folder = $this->folderRepository->getFirstBy(['slug' => $folderSlug]);
 
-    //             if (!$folder) {
-    //                 $folder = $this->folderRepository->createOrUpdate([
-    //                     'user_id'   => Auth::check() ? Auth::id() : 0,
-    //                     'name'      => $this->folderRepository->createName($folderSlug, 0),
-    //                     'slug'      => $this->folderRepository->createSlug($folderSlug, 0),
-    //                     'parent_id' => 0,
-    //                 ]);
-    //             }
+                if (!$folder) {
+                    $folder = $this->folderRepository->createOrUpdate([
+                        'user_id'   => Auth::check() ? Auth::id() : 0,
+                        'name'      => $this->folderRepository->createName($folderSlug, 0),
+                        'slug'      => $this->folderRepository->createSlug($folderSlug, 0),
+                        'parent_id' => 0,
+                    ]);
+                }
 
-    //             $folderId = $folder->id;
-    //         }
+                $folderId = $folder->id;
+            }
 
-    //         $file->name = $this->fileRepository->createName(
-    //             File::name($fileUpload->getClientOriginalName()),
-    //             $folderId
-    //         );
+            $file->name = $this->fileRepository->createName(
+                File::name($fileUpload->getClientOriginalName()),
+                $folderId
+            );
 
-    //         $folderPath = $this->folderRepository->getFullPath($folderId);
+            $folderPath = $this->folderRepository->getFullPath($folderId);
 
-    //         $fileName = $this->fileRepository->createSlug(
-    //             $file->name,
-    //             $fileExtension,
-    //             Storage::path($folderPath)
-    //         );
+            $fileName = $this->fileRepository->createSlug(
+                $file->name,
+                $fileExtension,
+                Storage::path($folderPath)
+            );
 
-    //         $filePath = $fileName;
+            $filePath = $fileName;
 
-    //         if ($folderPath) {
-    //             $filePath = $folderPath . '/' . $filePath;
-    //         }
+            if ($folderPath) {
+                $filePath = $folderPath . '/' . $filePath;
+            }
 
-    //         $content = File::get($fileUpload->getRealPath());
+            $content = File::get($fileUpload->getRealPath());
 
-    //         $this->uploadManager->saveFile($filePath, $content, $fileUpload);
+            $this->uploadManager->saveFile($filePath, $content, $fileUpload);
 
-    //         $data = $this->uploadManager->fileDetails($filePath);
+            $data = $this->uploadManager->fileDetails($filePath);
 
-    //         if (!$skipValidation && empty($data['mime_type'])) {
-    //             return [
-    //                 'error'   => true,
-    //                 'message' => trans('core/media::media.can_not_detect_file_type'),
-    //             ];
-    //         }
+            if (!$skipValidation && empty($data['mime_type'])) {
+                return [
+                    'error'   => true,
+                    'message' => trans('core/media::media.can_not_detect_file_type'),
+                ];
+            }
 
-    //         $file->url = $data['url'];
-    //         $file->size = $data['size'];
-    //         $file->mime_type = $data['mime_type'];
-    //         $file->folder_id = $folderId;
-    //         $file->user_id = Auth::check() ? Auth::id() : 0;
-    //         $file->options = $request->input('options', []);
-    //         $file = $this->fileRepository->createOrUpdate($file);
+            $file->url = $data['url'];
+            $file->size = $data['size'];
+            $file->mime_type = $data['mime_type'];
+            $file->folder_id = $folderId;
+            $file->user_id = Auth::check() ? Auth::id() : 0;
+            $file->options = $request->input('options', []);
+            $file = $this->fileRepository->createOrUpdate($file);
 
-    //         if ($file instanceof MediaFile) {
-    //             $this->generateThumbnails($file);
+            if ($file instanceof MediaFile) {
+                $this->generateThumbnails($file);
 
-    //             // Convert to WebP if applicable
-    //             // Wrap in try-catch to ensure upload doesn't fail if WebP conversion fails
-    //             try {
-    //                 $this->convertToWebP($file);
-    //             } catch (Exception $e) {
-    //                 // Log error but don't fail upload
-    //                 Log::error('WebP conversion failed in ThumbnailMedia', [
-    //                     'file_id' => $file->id ?? null,
-    //                     'file_url' => $file->url ?? null,
-    //                     'error' => $e->getMessage(),
-    //                     'trace' => $e->getTraceAsString(),
-    //                 ]);
-    //             }
-    //         }
+                // Convert to WebP if applicable
+                // Wrap in try-catch to ensure upload doesn't fail if WebP conversion fails
+                try {
+                    $this->convertToWebP($file);
+                } catch (Exception $e) {
+                    // Log error but don't fail upload
+                    Log::error('WebP conversion failed in ThumbnailMedia', [
+                        'file_id' => $file->id ?? null,
+                        'file_url' => $file->url ?? null,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+                }
+            }
 
-    //         return [
-    //             'error' => false,
-    //             'data'  => new FileResource($file),
-    //         ];
-    //     } catch (Exception $exception) {
-    //         return [
-    //             'error'   => true,
-    //             'message' => $exception->getMessage(),
-    //         ];
-    //     }
-    // }
+            return [
+                'error' => false,
+                'data'  => new FileResource($file),
+            ];
+        } catch (Exception $exception) {
+            return [
+                'error'   => true,
+                'message' => $exception->getMessage(),
+            ];
+        }
+    }
 
-    // public function deleteThumbnails(MediaFile $file): bool
-    // {
-    //     $parentDeleted = parent::deleteThumbnails($file);
-    //     $physicalDeleted = $this->purgePhysicalThumbnails($file);
+    public function deleteThumbnails(MediaFile $file): bool
+    {
+        $parentDeleted = parent::deleteThumbnails($file);
+        $physicalDeleted = $this->purgePhysicalThumbnails($file);
 
-    //     return $parentDeleted || $physicalDeleted;
-    // }
+        return $parentDeleted || $physicalDeleted;
+    }
 
     /**
      * Xóa thumbnails vật lý trong public/resize/ được tạo bởi PublicController
