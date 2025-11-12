@@ -141,10 +141,20 @@ class ThumbnailMedia extends AppMedia
 
         // Kiểm tra xem có đang trong quá trình xử lý resize request không
         // Nếu có, skip logic resize để tránh loop
-        $request = request();
-        if ($request && $request->is('resize/*')) {
-            // Đang xử lý resize request, không tạo resize URL nữa
-            return Storage::url($purePath . ($query ? ('?' . $query) : ''));
+        try {
+            $request = request();
+            if ($request) {
+                // Kiểm tra nhiều pattern để chắc chắn
+                $path = $request->path();
+                $uri = $request->getRequestUri();
+                
+                // Nếu đang xử lý resize request, không tạo resize URL nữa
+                if (strpos($path, 'resize/') === 0 || strpos($uri, '/resize/') !== false) {
+                    return Storage::url($purePath . ($query ? ('?' . $query) : ''));
+                }
+            }
+        } catch (\Exception $e) {
+            // Nếu không thể lấy request (ví dụ: trong console), skip check này
         }
 
         // Prefer .webp if exists for jpg/jpeg/png (better compression & performance)
@@ -177,6 +187,21 @@ class ThumbnailMedia extends AppMedia
         if ($query !== null) {
             // Chỉ thay thế nếu path bắt đầu bằng storage/
             if (Str::startsWith($purePath, 'storage/') || Str::startsWith($purePath, '/storage/')) {
+                // Kiểm tra lại xem có đang trong resize request không (double check)
+                try {
+                    $request = request();
+                    if ($request) {
+                        $currentPath = $request->path();
+                        $currentUri = $request->getRequestUri();
+                        // Nếu đang xử lý resize request, không tạo resize URL nữa
+                        if (strpos($currentPath, 'resize/') === 0 || strpos($currentUri, '/resize/') !== false) {
+                            return Storage::url($purePath . '?' . $query);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Nếu không thể lấy request, tiếp tục xử lý
+                }
+                
                 // Normalize path: đảm bảo có leading slash
                 $normalizedPath = ltrim($purePath, '/');
                 
