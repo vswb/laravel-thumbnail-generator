@@ -1,8 +1,9 @@
 {
     "name": "dev-extensions/thumbnail-generator",
     "description": "Media thumbnails generator plugin",
-    "type": "package",
+    "type": "library",
     "require": {
+        "php": "^8.0"
     },
     "autoload": {
         "psr-4": {
