@@ -100,12 +100,17 @@ class ThumbnailMedia extends AppMedia
     }
 
     /**
-     * @param string $path
+     * @param string|null $path
      * @return string
      */
-    public function url($path): string
+    public function url(?string $path): string
     {
-        $path = trim($path);
+        $path = $path ? trim($path) : $path;
+
+        // Handle null or empty path
+        if (empty($path)) {
+            return Storage::url('');
+        }
 
         // Return external URLs as-is
         if (Str::contains($path, 'https://') || Str::contains($path, 'http://')) {
@@ -139,7 +144,7 @@ class ThumbnailMedia extends AppMedia
 
         // Nếu path có query params (từ getImageUrl), redirect đến resize endpoint
         // Ví dụ: storage/news/image.jpg?w=300&h=200 → /resize/storage/news/image.jpg?w=300&h=200
-        if (str_contains($path, '?')) {
+        if (Str::contains($path, '?')) {
             return str_replace('/storage/', '/resize/storage/', Storage::url($path));
         }
 
