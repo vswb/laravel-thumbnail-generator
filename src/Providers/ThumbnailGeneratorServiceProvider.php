@@ -31,12 +31,28 @@ class ThumbnailGeneratorServiceProvider extends ServiceProvider
             );
         });
 
-        // /** 
-        //  * @note các em chú ý: đây là cách rebind AppMedia để sử dụng ThumbnailMedia, 
-        //  * thay vì sửa trực tiếp AppMedia core của Platform*/
-        // $this->app->singleton(AppMedia::class, function ($app) {
-        //     return $app->make(ThumbnailMedia::class);
-        // });
+        /** 
+         * @note các em chú ý: đây là cách rebind AppMedia để sử dụng ThumbnailMedia, 
+         * thay vì sửa trực tiếp AppMedia core của Platform
+         * 
+         * WARNING: Rebind này có thể gây redirect loop nếu có code nào đó gọi AppMedia::url()
+         * trong quá trình xử lý request. Sử dụng afterResolving để tránh conflict với
+         * MediaServiceProvider của core.
+         */
+        // Chỉ rebind nếu chưa được bind bởi MediaServiceProvider
+        // Sử dụng extend() thay vì singleton() để override binding hiện có an toàn hơn
+        if ($this->app->bound(AppMedia::class)) {
+            // Nếu đã được bind, extend binding hiện có
+            $this->app->extend(AppMedia::class, function ($existing, $app) {
+                // Trả về ThumbnailMedia thay vì instance cũ
+                return $app->make(ThumbnailMedia::class);
+            });
+        } else {
+            // Nếu chưa được bind, bind mới
+            $this->app->singleton(AppMedia::class, function ($app) {
+                return $app->make(ThumbnailMedia::class);
+            });
+        }
 
         if (class_exists('ThumbnailMediaFacade')) {
             AliasLoader::getInstance()->alias('ThumbnailMediaFacade', ThumbnailMediaFacade::class);

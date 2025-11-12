@@ -26,6 +26,11 @@ use function apps_cache_store;
 class ThumbnailMedia extends AppMedia
 {
     /**
+     * Flag để tránh infinite loop khi url() được gọi từ nhiều nơi
+     * Khi flag này được set, sẽ skip logic resize và chỉ return Storage::url()
+     */
+    protected static $skipResizeLogic = false;
+    /**
      * @param string|null $url
      * @param null $size
      * @param bool $relativePath
@@ -127,6 +132,19 @@ class ThumbnailMedia extends AppMedia
             // Không dùng url() helper để tránh redirect loop
             $finalPath = '/' . ltrim($purePath, '/') . ($query ? ('?' . $query) : '');
             return $finalPath;
+        }
+
+        // Nếu đang skip resize logic (tránh infinite loop), chỉ return Storage::url()
+        if (self::$skipResizeLogic) {
+            return Storage::url($purePath . ($query ? ('?' . $query) : ''));
+        }
+
+        // Kiểm tra xem có đang trong quá trình xử lý resize request không
+        // Nếu có, skip logic resize để tránh loop
+        $request = request();
+        if ($request && $request->is('resize/*')) {
+            // Đang xử lý resize request, không tạo resize URL nữa
+            return Storage::url($purePath . ($query ? ('?' . $query) : ''));
         }
 
         // Prefer .webp if exists for jpg/jpeg/png (better compression & performance)
