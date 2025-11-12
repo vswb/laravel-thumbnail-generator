@@ -33,16 +33,10 @@ class ThumbnailGeneratorServiceProvider extends ServiceProvider
 
         /** 
          * @note các em chú ý: đây là cách rebind AppMedia để sử dụng ThumbnailMedia, 
-         * thay vì sửa trực tiếp AppMedia core của Platform
-         * 
-         * WARNING: Rebind này có thể gây redirect loop nếu có code nào đó gọi AppMedia::url()
-         * trong quá trình xử lý request. 
-         * 
-         * GIẢI PHÁP: Chỉ rebind sau khi app đã booted để tránh conflict với các service provider khác
-         * và tránh gọi trong quá trình khởi tạo.
-         */
-        // KHÔNG rebind trong register() - sẽ gây redirect loop
-        // Chỉ rebind trong boot() sau khi app đã booted
+         * thay vì sửa trực tiếp AppMedia core của Platform*/
+        $this->app->singleton(AppMedia::class, function ($app) {
+            return $app->make(ThumbnailMedia::class);
+        });
 
         if (class_exists('ThumbnailMediaFacade')) {
             AliasLoader::getInstance()->alias('ThumbnailMediaFacade', ThumbnailMediaFacade::class);
@@ -62,24 +56,6 @@ class ThumbnailGeneratorServiceProvider extends ServiceProvider
 
         // Ensure core helpers are loaded before using add_filter
         $this->app->booted(function () {
-            // TEMPORARILY DISABLED: Rebind AppMedia gây redirect loop
-            // TODO: Tìm cách khác để thay thế AppMedia mà không gây redirect loop
-            // 
-            // Rebind AppMedia sau khi app đã booted để tránh conflict
-            // Chỉ rebind nếu chưa được rebind bởi service provider khác
-            // if ($this->app->bound(AppMedia::class)) {
-            //     // Nếu đã được bind, extend binding hiện có
-            //     $this->app->extend(AppMedia::class, function ($existing, $app) {
-            //         // Trả về ThumbnailMedia thay vì instance cũ
-            //         return $app->make(ThumbnailMedia::class);
-            //     });
-            // } else {
-            //     // Nếu chưa được bind, bind mới
-            //     $this->app->singleton(AppMedia::class, function ($app) {
-            //         return $app->make(ThumbnailMedia::class);
-            //     });
-            // }
-
             // Define constant if not exists (for compatibility)
             if (!defined('BASE_FILTER_AFTER_SETTING_CONTENT')) {
                 define('BASE_FILTER_AFTER_SETTING_CONTENT', 'base_filter_after_setting_content');
@@ -99,16 +75,7 @@ class ThumbnailGeneratorServiceProvider extends ServiceProvider
 
     public function handleSetMaxFileSize($value, $ext)
     {
-        // Sử dụng ThumbnailMedia trực tiếp thay vì AppMedia để tránh loop
-        // Nếu rebind bị tắt, vẫn có thể sử dụng ThumbnailMedia
-        try {
-            $media = app(ThumbnailMedia::class);
-            $allowedMimeTypes = explode(',', $media->getConfig('allowed_mime_types'));
-        } catch (\Exception $e) {
-            // Fallback: sử dụng AppMedia nếu ThumbnailMedia không available
-            $allowedMimeTypes = explode(',', app(AppMedia::class)->getConfig('allowed_mime_types'));
-        }
-        
+        $allowedMimeTypes = explode(',', app(AppMedia::class)->getConfig('allowed_mime_types'));
         if (in_array($ext, $allowedMimeTypes)) {
             $mimeTypes = get_max_mimesizes();
             $mime = $mimeTypes->firstWhere('type', $ext);
