@@ -3,16 +3,9 @@
 namespace Dev\ThumbnailGenerator\Providers;
 
 use Illuminate\Foundation\AliasLoader;
-use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Str;
 use Illuminate\Support\ServiceProvider;
 
-use Dev\Base\Facades\DashboardMenu;
-use Dev\Base\Facades\PanelSectionManager;
-use Dev\Base\PanelSections\PanelSectionItem;
-use Dev\Setting\PanelSections\SettingCommonPanelSection;
 use Dev\Kernel\Traits\LoadAndPublishDataTrait;
 use Dev\Media\RvMedia as AppMedia;
 use Dev\Media\Repositories\Interfaces\MediaFileInterface;
