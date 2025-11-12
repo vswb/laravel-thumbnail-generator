@@ -62,20 +62,23 @@ class ThumbnailGeneratorServiceProvider extends ServiceProvider
 
         // Ensure core helpers are loaded before using add_filter
         $this->app->booted(function () {
+            // TEMPORARILY DISABLED: Rebind AppMedia gây redirect loop
+            // TODO: Tìm cách khác để thay thế AppMedia mà không gây redirect loop
+            // 
             // Rebind AppMedia sau khi app đã booted để tránh conflict
             // Chỉ rebind nếu chưa được rebind bởi service provider khác
-            if ($this->app->bound(AppMedia::class)) {
-                // Nếu đã được bind, extend binding hiện có
-                $this->app->extend(AppMedia::class, function ($existing, $app) {
-                    // Trả về ThumbnailMedia thay vì instance cũ
-                    return $app->make(ThumbnailMedia::class);
-                });
-            } else {
-                // Nếu chưa được bind, bind mới
-                $this->app->singleton(AppMedia::class, function ($app) {
-                    return $app->make(ThumbnailMedia::class);
-                });
-            }
+            // if ($this->app->bound(AppMedia::class)) {
+            //     // Nếu đã được bind, extend binding hiện có
+            //     $this->app->extend(AppMedia::class, function ($existing, $app) {
+            //         // Trả về ThumbnailMedia thay vì instance cũ
+            //         return $app->make(ThumbnailMedia::class);
+            //     });
+            // } else {
+            //     // Nếu chưa được bind, bind mới
+            //     $this->app->singleton(AppMedia::class, function ($app) {
+            //         return $app->make(ThumbnailMedia::class);
+            //     });
+            // }
 
             // Define constant if not exists (for compatibility)
             if (!defined('BASE_FILTER_AFTER_SETTING_CONTENT')) {
@@ -96,7 +99,16 @@ class ThumbnailGeneratorServiceProvider extends ServiceProvider
 
     public function handleSetMaxFileSize($value, $ext)
     {
-        $allowedMimeTypes = explode(',', app(AppMedia::class)->getConfig('allowed_mime_types'));
+        // Sử dụng ThumbnailMedia trực tiếp thay vì AppMedia để tránh loop
+        // Nếu rebind bị tắt, vẫn có thể sử dụng ThumbnailMedia
+        try {
+            $media = app(ThumbnailMedia::class);
+            $allowedMimeTypes = explode(',', $media->getConfig('allowed_mime_types'));
+        } catch (\Exception $e) {
+            // Fallback: sử dụng AppMedia nếu ThumbnailMedia không available
+            $allowedMimeTypes = explode(',', app(AppMedia::class)->getConfig('allowed_mime_types'));
+        }
+        
         if (in_array($ext, $allowedMimeTypes)) {
             $mimeTypes = get_max_mimesizes();
             $mime = $mimeTypes->firstWhere('type', $ext);
