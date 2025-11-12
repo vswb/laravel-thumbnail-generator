@@ -117,16 +117,27 @@ class ThumbnailMedia extends AppMedia
             return $path;
         }
 
+        // Tách path và query ngay từ đầu để xử lý nhất quán
+        [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
+        
+        // Kiểm tra xem path đã có /resize/ chưa để tránh loop - return ngay
+        // Nếu đã có /resize/, chỉ cần return URL trực tiếp (không xử lý thêm)
+        if (Str::contains($purePath, '/resize/') || Str::contains($purePath, 'resize/')) {
+            // Path đã là resize endpoint, return trực tiếp với query params
+            $finalPath = $purePath . ($query ? ('?' . $query) : '');
+            // Sử dụng url() helper để tạo relative URL
+            return url($finalPath);
+        }
+
         // Prefer .webp if exists for jpg/jpeg/png (better compression & performance)
-        if (!empty($path)) {
-            [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
+        if (!empty($purePath)) {
             $ext = strtolower(pathinfo($purePath, PATHINFO_EXTENSION));
 
             if (in_array($ext, ['jpg', 'jpeg', 'png'], true)) {
                 $webpPath = substr($purePath, 0, -strlen($ext)) . 'webp';
 
                 if (Storage::exists($webpPath)) {
-                    $path = $webpPath . ($query ? ('?' . $query) : '');
+                    $purePath = $webpPath;
                 }
             }
         }
@@ -134,37 +145,37 @@ class ThumbnailMedia extends AppMedia
         // DigitalOcean Spaces CDN support
         if (config('filesystems.default') === 'do_spaces' && (int)setting('media_do_spaces_cdn_enabled')) {
             $customDomain = setting('media_do_spaces_cdn_custom_domain');
+            $finalPath = $purePath . ($query ? ('?' . $query) : '');
 
             if ($customDomain) {
-                return $customDomain . '/' . ltrim($path, '/');
+                return $customDomain . '/' . ltrim($finalPath, '/');
             }
 
-            return str_replace('.digitaloceanspaces.com', '.cdn.digitaloceanspaces.com', Storage::url($path));
+            return str_replace('.digitaloceanspaces.com', '.cdn.digitaloceanspaces.com', Storage::url($finalPath));
         }
 
         // Nếu path có query params (từ getImageUrl), redirect đến resize endpoint
         // Ví dụ: storage/news/image.jpg?w=300&h=200 → /resize/storage/news/image.jpg?w=300&h=200
-        if (Str::contains($path, '?')) {
-            // Tách path và query để xử lý riêng
-            [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
-            
-            // Kiểm tra xem path đã có /resize/ chưa để tránh loop
-            if (Str::contains($purePath, '/resize/')) {
-                // Đã có /resize/, chỉ cần return Storage::url với query
-                return Storage::url($path);
-            }
-            
+        if ($query !== null) {
             // Chỉ thay thế nếu path bắt đầu bằng storage/
             if (Str::startsWith($purePath, 'storage/') || Str::startsWith($purePath, '/storage/')) {
-                $resizePath = str_replace(['storage/', '/storage/'], ['resize/storage/', '/resize/storage/'], $purePath);
-                $resizeUrl = Storage::url($resizePath);
+                // Normalize path: đảm bảo có leading slash
+                $normalizedPath = ltrim($purePath, '/');
+                
+                // Tạo resize path: thay storage/ thành resize/storage/
+                $resizePath = 'resize/' . $normalizedPath;
+                
+                // Sử dụng url() helper để tạo relative URL thay vì Storage::url() (tránh absolute URL)
+                // Điều này tránh redirect loop khi Storage::url() trả về absolute URL
+                $resizeUrl = url($resizePath);
                 
                 // Thêm query params vào URL
-                return $resizeUrl . ($query ? ('?' . $query) : '');
+                return $resizeUrl . '?' . $query;
             }
         }
 
-        return Storage::url($path);
+        // Return URL không có query hoặc đã xử lý query ở trên
+        return Storage::url($purePath . ($query ? ('?' . $query) : ''));
     }
 
     /**
