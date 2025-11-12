@@ -3,9 +3,6 @@
     "description": "Media thumbnails generator plugin",
     "type": "library",
     "license": "MIT",
-    "require": {
-        "php": ">=8.2"
-    },
     "autoload": {
         "psr-4": {
             "Dev\\ThumbnailGenerator\\": "src/"
