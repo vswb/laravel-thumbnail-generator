@@ -26,17 +26,6 @@ use function apps_cache_store;
 class ThumbnailMedia extends AppMedia
 {
     /**
-     * Flag để tránh infinite loop khi url() được gọi từ nhiều nơi
-     * Khi flag này được set, sẽ skip logic resize và chỉ return Storage::url()
-     */
-    protected static $skipResizeLogic = false;
-
-    /**
-     * Track depth của recursive calls để tránh infinite loop
-     * Khi depth > 1, có nghĩa là đang trong recursive call
-     */
-    protected static $urlCallDepth = 0;
-    /**
      * @param string|null $url
      * @param null $size
      * @param bool $relativePath
@@ -116,85 +105,28 @@ class ThumbnailMedia extends AppMedia
      */
     public function url(?string $path): string
     {
-        // Tăng depth để track recursive calls
-        self::$urlCallDepth++;
-        
-        try {
-            $path = $path ? trim($path) : $path;
+        $path = $path ? trim($path) : $path;
 
-            // Handle null or empty path
-            if (empty($path)) {
-                return Storage::url('');
-            }
+        // Handle null or empty path
+        if (empty($path)) {
+            return Storage::url('');
+        }
 
-            // Return external URLs as-is
-            if (Str::contains($path, 'https://') || Str::contains($path, 'http://')) {
-                return $path;
-            }
-
-            // Tách path và query ngay từ đầu để xử lý nhất quán
-            [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
-            
-            // Kiểm tra xem path đã có /resize/ chưa để tránh loop - return ngay
-            // Nếu đã có /resize/, chỉ cần return relative path trực tiếp (không dùng url() helper)
-            if (Str::contains($purePath, '/resize/') || Str::contains($purePath, 'resize/')) {
-                // Path đã là resize endpoint, return relative path trực tiếp với query params
-                // Không dùng url() helper để tránh redirect loop
-                $finalPath = '/' . ltrim($purePath, '/') . ($query ? ('?' . $query) : '');
-                return $finalPath;
-            }
-
-            // Nếu đang skip resize logic (tránh infinite loop), chỉ return Storage::url()
-            if (self::$skipResizeLogic) {
-                return Storage::url($purePath . ($query ? ('?' . $query) : ''));
-            }
-
-            // QUAN TRỌNG: Kiểm tra recursive call depth
-            // Nếu depth > 1, có nghĩa là đang trong recursive call, skip logic resize
-            if (self::$urlCallDepth > 1) {
-                return Storage::url($purePath . ($query ? ('?' . $query) : ''));
-            }
-
-            // QUAN TRỌNG: Kiểm tra xem app đã booted chưa
-            // Nếu chưa booted (đang trong quá trình register/boot), skip logic resize để tránh loop
-            // Khi rebind AppMedia, có thể có code gọi url() trong quá trình khởi tạo
-            try {
-                $app = app();
-                if ($app && !$app->isBooted()) {
-                    // App chưa booted, chỉ return Storage::url() để tránh loop
-                    return Storage::url($purePath . ($query ? ('?' . $query) : ''));
-                }
-            } catch (\Exception $e) {
-                // Nếu không thể kiểm tra, tiếp tục xử lý
-            }
-
-        // Kiểm tra xem có đang trong quá trình xử lý resize request không
-        // Nếu có, skip logic resize để tránh loop
-        try {
-            $request = request();
-            if ($request) {
-                // Kiểm tra nhiều pattern để chắc chắn
-                $path = $request->path();
-                $uri = $request->getRequestUri();
-                
-                // Nếu đang xử lý resize request, không tạo resize URL nữa
-                if (strpos($path, 'resize/') === 0 || strpos($uri, '/resize/') !== false) {
-                    return Storage::url($purePath . ($query ? ('?' . $query) : ''));
-                }
-            }
-        } catch (\Exception $e) {
-            // Nếu không thể lấy request (ví dụ: trong console), skip check này
+        // Return external URLs as-is
+        if (Str::contains($path, 'https://') || Str::contains($path, 'http://')) {
+            return $path;
         }
 
         // Prefer .webp if exists for jpg/jpeg/png (better compression & performance)
-        if (!empty($purePath)) {
+        if (!empty($path)) {
+            [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
             $ext = strtolower(pathinfo($purePath, PATHINFO_EXTENSION));
 
             if (in_array($ext, ['jpg', 'jpeg', 'png'], true)) {
                 $webpPath = substr($purePath, 0, -strlen($ext)) . 'webp';
 
                 if (Storage::exists($webpPath)) {
-                    $purePath = $webpPath;
+                    $path = $webpPath . ($query ? ('?' . $query) : '');
                 }
             }
         }
@@ -202,53 +134,37 @@ class ThumbnailMedia extends AppMedia
         // DigitalOcean Spaces CDN support
         if (config('filesystems.default') === 'do_spaces' && (int)setting('media_do_spaces_cdn_enabled')) {
             $customDomain = setting('media_do_spaces_cdn_custom_domain');
-            $finalPath = $purePath . ($query ? ('?' . $query) : '');
 
             if ($customDomain) {
-                return $customDomain . '/' . ltrim($finalPath, '/');
+                return $customDomain . '/' . ltrim($path, '/');
             }
 
-            return str_replace('.digitaloceanspaces.com', '.cdn.digitaloceanspaces.com', Storage::url($finalPath));
+            return str_replace('.digitaloceanspaces.com', '.cdn.digitaloceanspaces.com', Storage::url($path));
         }
 
         // Nếu path có query params (từ getImageUrl), redirect đến resize endpoint
         // Ví dụ: storage/news/image.jpg?w=300&h=200 → /resize/storage/news/image.jpg?w=300&h=200
-        if ($query !== null) {
+        if (Str::contains($path, '?')) {
+            // Tách path và query để xử lý riêng
+            [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
+            
+            // Kiểm tra xem path đã có /resize/ chưa để tránh loop
+            if (Str::contains($purePath, '/resize/')) {
+                // Đã có /resize/, chỉ cần return Storage::url với query
+                return Storage::url($path);
+            }
+            
             // Chỉ thay thế nếu path bắt đầu bằng storage/
             if (Str::startsWith($purePath, 'storage/') || Str::startsWith($purePath, '/storage/')) {
-                // Kiểm tra lại xem có đang trong resize request không (double check)
-                try {
-                    $request = request();
-                    if ($request) {
-                        $currentPath = $request->path();
-                        $currentUri = $request->getRequestUri();
-                        // Nếu đang xử lý resize request, không tạo resize URL nữa
-                        if (strpos($currentPath, 'resize/') === 0 || strpos($currentUri, '/resize/') !== false) {
-                            return Storage::url($purePath . '?' . $query);
-                        }
-                    }
-                } catch (\Exception $e) {
-                    // Nếu không thể lấy request, tiếp tục xử lý
-                }
+                $resizePath = str_replace(['storage/', '/storage/'], ['resize/storage/', '/resize/storage/'], $purePath);
+                $resizeUrl = Storage::url($resizePath);
                 
-                // Normalize path: đảm bảo có leading slash
-                $normalizedPath = ltrim($purePath, '/');
-                
-                // Tạo resize path: thay storage/ thành resize/storage/
-                $resizePath = 'resize/' . $normalizedPath;
-                
-                // Return relative path trực tiếp (không dùng url() helper để tránh redirect loop)
-                // url() helper có thể trigger route matching và gây redirect loop
-                return '/' . $resizePath . '?' . $query;
+                // Thêm query params vào URL
+                return $resizeUrl . ($query ? ('?' . $query) : '');
             }
         }
 
-        // Return URL không có query hoặc đã xử lý query ở trên
-        return Storage::url($purePath . ($query ? ('?' . $query) : ''));
-        } finally {
-            // Giảm depth sau khi xử lý xong
-            self::$urlCallDepth--;
-        }
+        return Storage::url($path);
     }
 
     /**
