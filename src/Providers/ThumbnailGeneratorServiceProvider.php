@@ -21,26 +21,26 @@ class ThumbnailGeneratorServiceProvider extends ServiceProvider
 
     public function register()
     {
-        // Bind ThumbnailMedia as singleton so facade can resolve it
-        $this->app->singleton(ThumbnailMedia::class, function ($app) {
-            return new ThumbnailMedia(
-                $app->make(MediaFileInterface::class),
-                $app->make(MediaFolderInterface::class),
-                $app->make(UploadsManager::class),
-                $app->make(ThumbnailService::class)
-            );
-        });
+        // // Bind ThumbnailMedia as singleton so facade can resolve it
+        // $this->app->singleton(ThumbnailMedia::class, function ($app) {
+        //     return new ThumbnailMedia(
+        //         $app->make(MediaFileInterface::class),
+        //         $app->make(MediaFolderInterface::class),
+        //         $app->make(UploadsManager::class),
+        //         $app->make(ThumbnailService::class)
+        //     );
+        // });
 
-        /** 
-         * @note các em chú ý: đây là cách rebind AppMedia để sử dụng ThumbnailMedia, 
-         * thay vì sửa trực tiếp AppMedia core của Platform*/
-        $this->app->singleton(AppMedia::class, function ($app) {
-            return $app->make(ThumbnailMedia::class);
-        });
+        // /** 
+        //  * @note các em chú ý: đây là cách rebind AppMedia để sử dụng ThumbnailMedia, 
+        //  * thay vì sửa trực tiếp AppMedia core của Platform*/
+        // $this->app->singleton(AppMedia::class, function ($app) {
+        //     return $app->make(ThumbnailMedia::class);
+        // });
 
-        if (class_exists('ThumbnailMediaFacade')) {
-            AliasLoader::getInstance()->alias('ThumbnailMediaFacade', ThumbnailMediaFacade::class);
-        }
+        // if (class_exists('ThumbnailMediaFacade')) {
+        //     AliasLoader::getInstance()->alias('ThumbnailMediaFacade', ThumbnailMediaFacade::class);
+        // }
     }
 
     public function boot()
