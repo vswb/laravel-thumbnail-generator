@@ -3,16 +3,9 @@
 namespace Platform\ThumbnailGenerator\Providers;
 
 use Illuminate\Foundation\AliasLoader;
-use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Str;
 use Illuminate\Support\ServiceProvider;
 
-use Platform\Base\Facades\DashboardMenu;
-use Platform\Base\Facades\PanelSectionManager;
-use Platform\Base\PanelSections\PanelSectionItem;
-use Platform\Setting\PanelSections\SettingCommonPanelSection;
 use Platform\Kernel\Traits\LoadAndPublishDataTrait;
 use Platform\Media\RvMedia as AppMedia;
 use Platform\Media\Repositories\Interfaces\MediaFileInterface;
@@ -52,27 +45,27 @@ class ThumbnailGeneratorServiceProvider extends ServiceProvider
 
     public function boot()
     {
-        $this
-            ->setNamespace('packages/thumbnail-generator')
-            ->loadRoutes()
-            ->loadAndPublishTranslations()
-            ->loadMigrations()
-            ->loadAndPublishViews()
-            ->loadHelpers()
-        ;
+        // $this
+        //     ->setNamespace('packages/thumbnail-generator')
+        //     ->loadRoutes()
+        //     ->loadAndPublishTranslations()
+        //     ->loadMigrations()
+        //     ->loadAndPublishViews()
+        //     ->loadHelpers()
+        // ;
 
         // Ensure core helpers are loaded before using add_filter
-        $this->app->booted(function () {
-            // Define constant if not exists (for compatibility)
-            if (!defined('BASE_FILTER_AFTER_SETTING_CONTENT')) {
-                define('BASE_FILTER_AFTER_SETTING_CONTENT', 'base_filter_after_setting_content');
-            }
+        // $this->app->booted(function () {
+        //     // Define constant if not exists (for compatibility)
+        //     if (!defined('BASE_FILTER_AFTER_SETTING_CONTENT')) {
+        //         define('BASE_FILTER_AFTER_SETTING_CONTENT', 'base_filter_after_setting_content');
+        //     }
 
-            if (function_exists('add_filter')) {
-                add_filter('handle_filter_value_maxsize', [$this, 'handleSetMaxFileSize'], 10, 2);
-                add_filter(BASE_FILTER_AFTER_SETTING_CONTENT, [$this, 'renderSetting'], 10, 1);
-            }
-        });
+        //     if (function_exists('add_filter')) {
+        //         add_filter('handle_filter_value_maxsize', [$this, 'handleSetMaxFileSize'], 10, 2);
+        //         add_filter(BASE_FILTER_AFTER_SETTING_CONTENT, [$this, 'renderSetting'], 10, 1);
+        //     }
+        // });
     }
 
     public function fileSizeConvert($size)
