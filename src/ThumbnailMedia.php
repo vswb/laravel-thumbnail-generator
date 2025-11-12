@@ -25,79 +25,79 @@ use function apps_cache_store;
 
 class ThumbnailMedia extends AppMedia
 {
-    /**
-     * @param string|null $url
-     * @param null $size
-     * @param bool $relativePath
-     * @param null $default
-     * @return Application|UrlGenerator|string|string[]|null
-     */
-    public function getImageUrl(
-        $url,
-        $size = null,
-        $relativePath = false,
-        $default = null
-    ) {
-        $url = trim($url);
+    // /**
+    //  * @param string|null $url
+    //  * @param null $size
+    //  * @param bool $relativePath
+    //  * @param null $default
+    //  * @return Application|UrlGenerator|string|string[]|null
+    //  */
+    // public function getImageUrl(
+    //     $url,
+    //     $size = null,
+    //     $relativePath = false,
+    //     $default = null
+    // ) {
+    //     $url = trim($url);
 
-        if (empty($url)) {
-            return $default;
-        }
+    //     if (empty($url)) {
+    //         return $default;
+    //     }
 
-        if (empty($size) || $url == '__value__') {
-            if ($relativePath) {
-                return $url;
-            }
+    //     if (empty($size) || $url == '__value__') {
+    //         if ($relativePath) {
+    //             return $url;
+    //         }
 
-            return $this->url($url);
-        }
+    //         return $this->url($url);
+    //     }
 
-        if ($url == $this->getDefaultImage()) {
-            return url($url);
-        }
+    //     if ($url == $this->getDefaultImage()) {
+    //         return url($url);
+    //     }
 
-        if (
-            $size &&
-            array_key_exists($size, $this->getSizes()) &&
-            $this->canGenerateThumbnails($this->getMimeType($this->getRealPath($url)))
-        ) {
-            $url = str_replace(
-                File::name($url) . '.' . File::extension($url),
-                File::name($url) . '-' . $this->getSize($size) . '.' . File::extension($url),
-                $url
-            );
-        }
+    //     if (
+    //         $size &&
+    //         array_key_exists($size, $this->getSizes()) &&
+    //         $this->canGenerateThumbnails($this->getMimeType($this->getRealPath($url)))
+    //     ) {
+    //         $url = str_replace(
+    //             File::name($url) . '.' . File::extension($url),
+    //             File::name($url) . '-' . $this->getSize($size) . '.' . File::extension($url),
+    //             $url
+    //         );
+    //     }
 
-        preg_match_all('/(.*[0-9|auto])x(.*[0-9|auto])/m', $size, $matches, PREG_SET_ORDER, 0);
-        if ($size && $this->canGenerateThumbnails($this->getMimeType($this->getRealPath($url))) && isset($matches[0]) && count($matches[0]) > 0) {
-            $matches = Arr::first($matches);
+    //     preg_match_all('/(.*[0-9|auto])x(.*[0-9|auto])/m', $size, $matches, PREG_SET_ORDER, 0);
+    //     if ($size && $this->canGenerateThumbnails($this->getMimeType($this->getRealPath($url))) && isset($matches[0]) && count($matches[0]) > 0) {
+    //         $matches = Arr::first($matches);
 
-            $query = '';
-            if (isset($matches[1]) && $matches[1] != 'auto') {
-                $query .= "w={$matches[1]}";
-            }
-            if (isset($matches[2]) && $matches[2] != 'auto') {
-                if (!blank($query)) {
-                    $query .= "&";
-                }
-                $query .= "h={$matches[2]}";
-            }
+    //         $query = '';
+    //         if (isset($matches[1]) && $matches[1] != 'auto') {
+    //             $query .= "w={$matches[1]}";
+    //         }
+    //         if (isset($matches[2]) && $matches[2] != 'auto') {
+    //             if (!blank($query)) {
+    //                 $query .= "&";
+    //             }
+    //             $query .= "h={$matches[2]}";
+    //         }
 
-            if (!blank($query)) {
-                $url .= "?{$query}";
-            }
-        }
+    //         if (!blank($query)) {
+    //             $url .= "?{$query}";
+    //         }
+    //     }
 
-        if ($relativePath) {
-            return $url;
-        }
+    //     if ($relativePath) {
+    //         return $url;
+    //     }
 
-        if ($url == '__image__') {
-            return $this->url($default);
-        }
+    //     if ($url == '__image__') {
+    //         return $this->url($default);
+    //     }
 
-        return $this->url($url);
-    }
+    //     return $this->url($url);
+    // }
 
     // /**
     //  * @param string|null $path
