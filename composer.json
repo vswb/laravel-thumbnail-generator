@@ -2,6 +2,7 @@
     "name": "dev-extensions/thumbnail-generator",
     "description": "Media thumbnails generator plugin",
     "type": "library",
+    "license": "MIT",
     "require": {
         "php": "^8.0"
     },
