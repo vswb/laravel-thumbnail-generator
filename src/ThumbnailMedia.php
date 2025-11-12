@@ -103,7 +103,7 @@ class ThumbnailMedia extends AppMedia
      * @param string $path
      * @return string
      */
-    public function url($path)
+    public function url($path): string
     {
         $path = trim($path);
 
