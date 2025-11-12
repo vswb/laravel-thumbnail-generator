@@ -3,7 +3,7 @@
     "description": "Media thumbnails generator plugin",
     "type": "package",
     "require": {
-        "php": "^7.4",
+        "php": ">=7.4",
         "laravel/framework": "^7.0",
         "intervention/image": "^2.6"
     },
