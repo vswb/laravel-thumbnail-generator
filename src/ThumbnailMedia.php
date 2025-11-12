@@ -30,6 +30,12 @@ class ThumbnailMedia extends AppMedia
      * Khi flag này được set, sẽ skip logic resize và chỉ return Storage::url()
      */
     protected static $skipResizeLogic = false;
+
+    /**
+     * Track depth của recursive calls để tránh infinite loop
+     * Khi depth > 1, có nghĩa là đang trong recursive call
+     */
+    protected static $urlCallDepth = 0;
     /**
      * @param string|null $url
      * @param null $size
@@ -110,34 +116,57 @@ class ThumbnailMedia extends AppMedia
      */
     public function url(?string $path): string
     {
-        $path = $path ? trim($path) : $path;
-
-        // Handle null or empty path
-        if (empty($path)) {
-            return Storage::url('');
-        }
-
-        // Return external URLs as-is
-        if (Str::contains($path, 'https://') || Str::contains($path, 'http://')) {
-            return $path;
-        }
-
-        // Tách path và query ngay từ đầu để xử lý nhất quán
-        [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
+        // Tăng depth để track recursive calls
+        self::$urlCallDepth++;
         
-        // Kiểm tra xem path đã có /resize/ chưa để tránh loop - return ngay
-        // Nếu đã có /resize/, chỉ cần return relative path trực tiếp (không dùng url() helper)
-        if (Str::contains($purePath, '/resize/') || Str::contains($purePath, 'resize/')) {
-            // Path đã là resize endpoint, return relative path trực tiếp với query params
-            // Không dùng url() helper để tránh redirect loop
-            $finalPath = '/' . ltrim($purePath, '/') . ($query ? ('?' . $query) : '');
-            return $finalPath;
-        }
+        try {
+            $path = $path ? trim($path) : $path;
 
-        // Nếu đang skip resize logic (tránh infinite loop), chỉ return Storage::url()
-        if (self::$skipResizeLogic) {
-            return Storage::url($purePath . ($query ? ('?' . $query) : ''));
-        }
+            // Handle null or empty path
+            if (empty($path)) {
+                return Storage::url('');
+            }
+
+            // Return external URLs as-is
+            if (Str::contains($path, 'https://') || Str::contains($path, 'http://')) {
+                return $path;
+            }
+
+            // Tách path và query ngay từ đầu để xử lý nhất quán
+            [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
+            
+            // Kiểm tra xem path đã có /resize/ chưa để tránh loop - return ngay
+            // Nếu đã có /resize/, chỉ cần return relative path trực tiếp (không dùng url() helper)
+            if (Str::contains($purePath, '/resize/') || Str::contains($purePath, 'resize/')) {
+                // Path đã là resize endpoint, return relative path trực tiếp với query params
+                // Không dùng url() helper để tránh redirect loop
+                $finalPath = '/' . ltrim($purePath, '/') . ($query ? ('?' . $query) : '');
+                return $finalPath;
+            }
+
+            // Nếu đang skip resize logic (tránh infinite loop), chỉ return Storage::url()
+            if (self::$skipResizeLogic) {
+                return Storage::url($purePath . ($query ? ('?' . $query) : ''));
+            }
+
+            // QUAN TRỌNG: Kiểm tra recursive call depth
+            // Nếu depth > 1, có nghĩa là đang trong recursive call, skip logic resize
+            if (self::$urlCallDepth > 1) {
+                return Storage::url($purePath . ($query ? ('?' . $query) : ''));
+            }
+
+            // QUAN TRỌNG: Kiểm tra xem app đã booted chưa
+            // Nếu chưa booted (đang trong quá trình register/boot), skip logic resize để tránh loop
+            // Khi rebind AppMedia, có thể có code gọi url() trong quá trình khởi tạo
+            try {
+                $app = app();
+                if ($app && !$app->isBooted()) {
+                    // App chưa booted, chỉ return Storage::url() để tránh loop
+                    return Storage::url($purePath . ($query ? ('?' . $query) : ''));
+                }
+            } catch (\Exception $e) {
+                // Nếu không thể kiểm tra, tiếp tục xử lý
+            }
 
         // Kiểm tra xem có đang trong quá trình xử lý resize request không
         // Nếu có, skip logic resize để tránh loop
@@ -216,6 +245,10 @@ class ThumbnailMedia extends AppMedia
 
         // Return URL không có query hoặc đã xử lý query ở trên
         return Storage::url($purePath . ($query ? ('?' . $query) : ''));
+        } finally {
+            // Giảm depth sau khi xử lý xong
+            self::$urlCallDepth--;
+        }
     }
 
     /**
