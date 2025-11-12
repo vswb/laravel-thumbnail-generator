@@ -121,12 +121,12 @@ class ThumbnailMedia extends AppMedia
         [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
         
         // Kiểm tra xem path đã có /resize/ chưa để tránh loop - return ngay
-        // Nếu đã có /resize/, chỉ cần return URL trực tiếp (không xử lý thêm)
+        // Nếu đã có /resize/, chỉ cần return relative path trực tiếp (không dùng url() helper)
         if (Str::contains($purePath, '/resize/') || Str::contains($purePath, 'resize/')) {
-            // Path đã là resize endpoint, return trực tiếp với query params
-            $finalPath = $purePath . ($query ? ('?' . $query) : '');
-            // Sử dụng url() helper để tạo relative URL
-            return url($finalPath);
+            // Path đã là resize endpoint, return relative path trực tiếp với query params
+            // Không dùng url() helper để tránh redirect loop
+            $finalPath = '/' . ltrim($purePath, '/') . ($query ? ('?' . $query) : '');
+            return $finalPath;
         }
 
         // Prefer .webp if exists for jpg/jpeg/png (better compression & performance)
@@ -165,12 +165,9 @@ class ThumbnailMedia extends AppMedia
                 // Tạo resize path: thay storage/ thành resize/storage/
                 $resizePath = 'resize/' . $normalizedPath;
                 
-                // Sử dụng url() helper để tạo relative URL thay vì Storage::url() (tránh absolute URL)
-                // Điều này tránh redirect loop khi Storage::url() trả về absolute URL
-                $resizeUrl = url($resizePath);
-                
-                // Thêm query params vào URL
-                return $resizeUrl . '?' . $query;
+                // Return relative path trực tiếp (không dùng url() helper để tránh redirect loop)
+                // url() helper có thể trigger route matching và gây redirect loop
+                return '/' . $resizePath . '?' . $query;
             }
         }
 
