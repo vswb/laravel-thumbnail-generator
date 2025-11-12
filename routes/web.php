@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Route;
 | 1. CÀI ĐẶT
 |    - Copy package vào thư mục: dev-extensions/packages/thumbnail-generator
 |    - Đảm bảo package đã được autoload trong composer.json
-|    - Service provider tự động được đăng ký: Platform\ThumbnailGenerator\Providers\ThumbnailGeneratorServiceProvider
+|    - Service provider tự động được đăng ký: Dev\ThumbnailGenerator\Providers\ThumbnailGeneratorServiceProvider
 |
 | 2. FACADE (ThumbnailMedia)
 |    - Facade đã được tự động đăng ký và bind vào service container
@@ -22,14 +22,14 @@ use Illuminate\Support\Facades\Route;
 |       - Laravel tự động resolve facade, không cần use statement
 |
 |    b) Trong PHP CLASS (cần import facade):
-|       use Platform\ThumbnailGenerator\Facades\ThumbnailMediaFacade as ThumbnailMedia;
+|       use Dev\ThumbnailGenerator\Facades\ThumbnailMediaFacade as ThumbnailMedia;
 |       
 |       // Hoặc sử dụng full namespace
-|       \Platform\ThumbnailGenerator\Facades\ThumbnailMediaFacade::getImageUrl($url, $size);
+|       \Dev\ThumbnailGenerator\Facades\ThumbnailMediaFacade::getImageUrl($url, $size);
 |
 |    c) Sử dụng với alias (nếu muốn đơn giản hóa):
 |       // Trong config/app.php (aliases):
-|       'ThumbnailMedia' => Platform\ThumbnailGenerator\Facades\ThumbnailMediaFacade::class,
+|       'ThumbnailMedia' => Dev\ThumbnailGenerator\Facades\ThumbnailMediaFacade::class,
 |       
 |       // Sau đó có thể dùng: ThumbnailMedia::method() mà không cần import
 |
@@ -79,10 +79,10 @@ use Illuminate\Support\Facades\Route;
 | 6.1. SỬ DỤNG TRONG PHP CLASS/CONTROLLER
 |
 |    // Import facade class
-|    use Platform\ThumbnailGenerator\Facades\ThumbnailMediaFacade as ThumbnailMedia;
+|    use Dev\ThumbnailGenerator\Facades\ThumbnailMediaFacade as ThumbnailMedia;
 |    
 |    // Hoặc sử dụng full namespace
-|    use Platform\ThumbnailGenerator\Facades\ThumbnailMediaFacade;
+|    use Dev\ThumbnailGenerator\Facades\ThumbnailMediaFacade;
 |    
 |    class YourController extends Controller
 |    {
@@ -95,7 +95,7 @@ use Illuminate\Support\Facades\Route;
 |            $imageUrl = ThumbnailMediaFacade::getImageUrl('storage/news/image.jpg', '300x200');
 |            
 |            // Cách 3: Dùng dependency injection
-|            $thumbnailMedia = app(Platform\ThumbnailGenerator\ThumbnailMedia::class);
+|            $thumbnailMedia = app(Dev\ThumbnailGenerator\ThumbnailMedia::class);
 |            $imageUrl = $thumbnailMedia->getImageUrl('storage/news/image.jpg', '300x200');
 |            
 |            return view('your.view', compact('imageUrl'));
@@ -135,7 +135,7 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::group(['namespace' => 'Platform\ThumbnailGenerator\Http\Controllers'], function () {
+Route::group(['namespace' => 'Dev\ThumbnailGenerator\Http\Controllers'], function () {
     Route::get('resize/{slug}', [
         'uses' => 'PublicController@resize',
     ])->where('slug', 'storage/(.*).(jpg|jpeg|png|webp|gif)')

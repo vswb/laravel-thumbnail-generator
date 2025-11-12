@@ -1,6 +1,6 @@
 <?php
 
-namespace Platform\ThumbnailGenerator;
+namespace Dev\ThumbnailGenerator;
 
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Routing\UrlGenerator;
@@ -16,9 +16,9 @@ use Illuminate\Support\Facades\Auth;
 
 use Exception;
 
-use Platform\Media\Http\Resources\FileResource;
-use Platform\Media\Models\MediaFile;
-use Platform\Media\RvMedia as AppMedia;
+use Dev\Media\Http\Resources\FileResource;
+use Dev\Media\Models\MediaFile;
+use Dev\Media\RvMedia as AppMedia;
 
 use function apps_cache_get;
 use function apps_cache_store;
@@ -100,12 +100,17 @@ class ThumbnailMedia extends AppMedia
     }
 
     /**
-     * @param string $path
+     * @param string|null $path
      * @return string
      */
-    public function url($path)
+    public function url(?string $path): string
     {
-        $path = trim($path);
+        $path = $path ? trim($path) : $path;
+
+        // Handle null or empty path
+        if (empty($path)) {
+            return Storage::url('');
+        }
 
         // Return external URLs as-is
         if (Str::contains($path, 'https://') || Str::contains($path, 'http://')) {
@@ -139,8 +144,24 @@ class ThumbnailMedia extends AppMedia
 
         // Nếu path có query params (từ getImageUrl), redirect đến resize endpoint
         // Ví dụ: storage/news/image.jpg?w=300&h=200 → /resize/storage/news/image.jpg?w=300&h=200
-        if (str_contains($path, '?')) {
-            return str_replace('/storage/', '/resize/storage/', Storage::url($path));
+        if (Str::contains($path, '?')) {
+            // Tách path và query để xử lý riêng
+            [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
+            
+            // Kiểm tra xem path đã có /resize/ chưa để tránh loop
+            if (Str::contains($purePath, '/resize/')) {
+                // Đã có /resize/, chỉ cần return Storage::url với query
+                return Storage::url($path);
+            }
+            
+            // Chỉ thay thế nếu path bắt đầu bằng storage/
+            if (Str::startsWith($purePath, 'storage/') || Str::startsWith($purePath, '/storage/')) {
+                $resizePath = str_replace(['storage/', '/storage/'], ['resize/storage/', '/resize/storage/'], $purePath);
+                $resizeUrl = Storage::url($resizePath);
+                
+                // Thêm query params vào URL
+                return $resizeUrl . ($query ? ('?' . $query) : '');
+            }
         }
 
         return Storage::url($path);

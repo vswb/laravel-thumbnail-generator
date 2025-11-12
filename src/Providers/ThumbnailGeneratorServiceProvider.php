@@ -1,6 +1,6 @@
 <?php
 
-namespace Platform\ThumbnailGenerator\Providers;
+namespace Dev\ThumbnailGenerator\Providers;
 
 use Illuminate\Foundation\AliasLoader;
 use Illuminate\Routing\Events\RouteMatched;
@@ -9,18 +9,18 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Illuminate\Support\ServiceProvider;
 
-use Platform\Base\Facades\DashboardMenu;
-use Platform\Base\Facades\PanelSectionManager;
-use Platform\Base\PanelSections\PanelSectionItem;
-use Platform\Setting\PanelSections\SettingCommonPanelSection;
-use Platform\Kernel\Traits\LoadAndPublishDataTrait;
-use Platform\Media\RvMedia as AppMedia;
-use Platform\Media\Repositories\Interfaces\MediaFileInterface;
-use Platform\Media\Repositories\Interfaces\MediaFolderInterface;
-use Platform\Media\Services\UploadsManager;
-use Platform\Media\Services\ThumbnailService;
-use Platform\ThumbnailGenerator\Facades\ThumbnailMediaFacade;
-use Platform\ThumbnailGenerator\ThumbnailMedia;
+use Dev\Base\Facades\DashboardMenu;
+use Dev\Base\Facades\PanelSectionManager;
+use Dev\Base\PanelSections\PanelSectionItem;
+use Dev\Setting\PanelSections\SettingCommonPanelSection;
+use Dev\Kernel\Traits\LoadAndPublishDataTrait;
+use Dev\Media\RvMedia as AppMedia;
+use Dev\Media\Repositories\Interfaces\MediaFileInterface;
+use Dev\Media\Repositories\Interfaces\MediaFolderInterface;
+use Dev\Media\Services\UploadsManager;
+use Dev\Media\Services\ThumbnailService;
+use Dev\ThumbnailGenerator\Facades\ThumbnailMediaFacade;
+use Dev\ThumbnailGenerator\ThumbnailMedia;
 
 class ThumbnailGeneratorServiceProvider extends ServiceProvider
 {
@@ -62,6 +62,11 @@ class ThumbnailGeneratorServiceProvider extends ServiceProvider
 
         // Ensure core helpers are loaded before using add_filter
         $this->app->booted(function () {
+            // Define constant if not exists (for compatibility)
+            if (!defined('BASE_FILTER_AFTER_SETTING_CONTENT')) {
+                define('BASE_FILTER_AFTER_SETTING_CONTENT', 'base_filter_after_setting_content');
+            }
+            
             if (function_exists('add_filter')) {
                 add_filter('handle_filter_value_maxsize', [$this, 'handleSetMaxFileSize'], 10, 2);
                 add_filter(BASE_FILTER_AFTER_SETTING_CONTENT, [$this, 'renderSetting'], 10, 1);

@@ -1,14 +1,14 @@
 <?php
 
-namespace Platform\ThumbnailGenerator\Http\Controllers;
+namespace Dev\ThumbnailGenerator\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Intervention\Image\ImageManager;
-use Platform\Media\Facades\RvMediaFacade as AppMedia;
-use Platform\Base\Http\Controllers\BaseController;
+use Dev\Media\Facades\RvMediaFacade as AppMedia;
+use Dev\Base\Http\Controllers\BaseController;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class PublicController extends BaseController
