@@ -105,6 +105,9 @@ class ThumbnailMedia extends AppMedia
      */
     public function url(?string $path): string
     {
+        return parent::url($path); /// tránh redirect loop rồi tính sau
+        
+
         $path = $path ? trim($path) : $path;
 
         // Handle null or empty path
