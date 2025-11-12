@@ -6,25 +6,12 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Routing\UrlGenerator;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Auth;
-use Dev\Base\Facades\AdminHelper;
-use Dev\Base\Facades\BaseHelper;
 use Dev\Media\AppMedia;
-use Dev\Media\Events\MediaFileUploaded;
-use Dev\Media\Http\Resources\FileResource;
 use Dev\Media\Models\MediaFile;
-use Dev\Media\Models\MediaFolder;
-use Illuminate\Validation\Rules\File as ValidationFile;
-use Intervention\Image\Encoders\AutoEncoder;
-use Intervention\Image\Encoders\WebpEncoder;
-use League\Flysystem\UnableToWriteFile;
-use Throwable;
-
 class ThumbnailMedia extends AppMedia
 {
     /**
@@ -150,9 +137,25 @@ class ThumbnailMedia extends AppMedia
         // Nếu path có query params (từ getImageUrl), redirect đến resize endpoint
         // Ví dụ: storage/news/image.jpg?w=300&h=200 → /resize/storage/news/image.jpg?w=300&h=200
         if (str_contains($path, '?')) {
-            return str_replace('/storage/', '/resize/storage/', Storage::url($path));
+            // Tách path và query để xử lý riêng
+            [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
+
+            // Kiểm tra xem path đã có /resize/ chưa để tránh loop
+            if (Str::contains($purePath, '/resize/')) {
+                // Đã có /resize/, chỉ cần return Storage::url với query
+                return Storage::url($path);
+            }
+
+            // Chỉ thay thế nếu path bắt đầu bằng storage/
+            if (Str::startsWith($purePath, 'storage/') || Str::startsWith($purePath, '/storage/')) {
+                $resizePath = str_replace(['storage/', '/storage/'], ['resize/storage/', '/resize/storage/'], $purePath);
+                $resizeUrl = Storage::url($resizePath);
+
+                // Thêm query params vào URL
+                return $resizeUrl . ($query ? ('?' . $query) : '');
+            }
         }
-        
+
         return Storage::url($path);
     }
 

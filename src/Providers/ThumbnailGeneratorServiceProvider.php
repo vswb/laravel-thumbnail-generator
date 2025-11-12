@@ -55,6 +55,11 @@ class ThumbnailGeneratorServiceProvider extends ServiceProvider
 
         // Ensure core helpers are loaded before using add_filter
         $this->app->booted(function () {
+            // Define constant if not exists (for compatibility)
+            if (!defined('BASE_FILTER_AFTER_SETTING_CONTENT')) {
+                define('BASE_FILTER_AFTER_SETTING_CONTENT', 'base_filter_after_setting_content');
+            }
+
             if (function_exists('add_filter')) {
                 add_filter('handle_filter_value_maxsize', [$this, 'handleSetMaxFileSize'], 10, 2);
                 add_filter(BASE_FILTER_AFTER_SETTING_CONTENT, [$this, 'renderSetting'], 10, 1);
