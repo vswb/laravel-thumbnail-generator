@@ -2,8 +2,11 @@
 
 namespace Platform\ThumbnailGenerator;
 
+use Illuminate\Contracts\Filesystem\FileExistsException;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\Routing\ResponseFactory;
 use Illuminate\Contracts\Routing\UrlGenerator;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
@@ -13,16 +16,27 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 use Exception;
+use Image;
+use League\Flysystem\FileNotFoundException;
+use Mimey\MimeTypes;
+use Throwable;
 
 use Platform\Media\Http\Resources\FileResource;
 use Platform\Media\Models\MediaFile;
 use Platform\Media\RvMedia as AppMedia;
+use Platform\Media\Repositories\Interfaces\MediaFileInterface;
+use Platform\Media\Repositories\Interfaces\MediaFolderInterface;
+use Platform\Media\Services\ThumbnailService;
+use Platform\Media\Services\UploadsManager;
 
 use function apps_cache_get;
 use function apps_cache_store;
-
 class ThumbnailMedia extends AppMedia
 {
     /**
