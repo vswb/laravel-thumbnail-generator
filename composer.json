@@ -5,7 +5,7 @@
     "require": {
         "laravel/framework": "^7.0",
         "intervention/image": "^2.6",
-        "dev-extensions/kernel": "v6.x-is_platform"
+        "dev-extensions/kernel": "dev-lte.6x-is_platform"
     },
     "autoload": {
         "psr-4": {
