@@ -41,11 +41,93 @@ use function apps_cache_store;
 class ThumbnailMedia extends AppMedia
 {
     /**
+     * @param string|null $url
+     * @param null $size
+     * @param bool $relativePath
+     * @param null $default
+     * @return Application|UrlGenerator|string|string[]|null
+     */
+    public function getImageUrl(
+        $url,
+        $size = null,
+        $relativePath = false,
+        $default = null
+    ) {
+        if (env('ENABLED_WEBP', false) === false) {
+            return parent::getImageUrl($url, $size, $relativePath, $default); // không chuyển đổi ở môi trường local để dễ debug
+        }
+
+        $url = trim($url);
+
+        if (empty($url)) {
+            return $default;
+        }
+
+        if (empty($size) || $url == '__value__') {
+            if ($relativePath) {
+                return $url;
+            }
+
+            return $this->url($url);
+        }
+
+        if ($url == $this->getDefaultImage()) {
+            return url($url);
+        }
+
+        if (
+            $size &&
+            array_key_exists($size, $this->getSizes()) &&
+            $this->canGenerateThumbnails($this->getMimeType($this->getRealPath($url)))
+        ) {
+            $url = str_replace(
+                File::name($url) . '.' . File::extension($url),
+                File::name($url) . '-' . $this->getSize($size) . '.' . File::extension($url),
+                $url
+            );
+        }
+
+        preg_match_all('/(.*[0-9|auto])x(.*[0-9|auto])/m', $size, $matches, PREG_SET_ORDER, 0);
+        if ($size && $this->canGenerateThumbnails($this->getMimeType($this->getRealPath($url))) && isset($matches[0]) && count($matches[0]) > 0) {
+            $matches = Arr::first($matches);
+
+            $query = '';
+            if (isset($matches[1]) && $matches[1] != 'auto') {
+                $query .= "w={$matches[1]}";
+            }
+            if (isset($matches[2]) && $matches[2] != 'auto') {
+                if (!blank($query)) {
+                    $query .= "&";
+                }
+                $query .= "h={$matches[2]}";
+            }
+
+            if (!blank($query)) {
+                $url .= "?{$query}";
+            }
+        }
+
+        if ($relativePath) {
+            return $url;
+        }
+
+        if ($url == '__image__') {
+            return $this->url($default);
+        }
+
+        return $this->url($url);
+    }
+    
+    /**
      * @param string|null $path
      * @return string
      */
     public function url(?string $path): string
     {
+        if (env('ENABLED_WEBP', false) === false) {
+            return parent::url($path); // không chuyển đổi ở môi trường local để dễ debug
+        }
+
         $path = $path ? trim($path) : $path;
 
         // Handle null or empty path
