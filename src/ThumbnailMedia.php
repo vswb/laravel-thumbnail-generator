@@ -54,7 +54,7 @@ class ThumbnailMedia extends AppMedia
         $default = null
     ) {
         if (env('ENABLED_WEBP', false) === false) {
-            return parent::getImageUrl($url, $size, $relativePath, $default); // không chuyển đổi ở môi trường local để dễ debug
+            return parent::getImageUrl($url, $size, $relativePath, $default);
         }
 
         $url = trim($url);
@@ -125,7 +125,7 @@ class ThumbnailMedia extends AppMedia
     public function url(?string $path): string
     {
         if (env('ENABLED_WEBP', false) === false) {
-            return parent::url($path); // không chuyển đổi ở môi trường local để dễ debug
+            return parent::getImageUrl($url, $size, $relativePath, $default);
         }
 
         $path = $path ? trim($path) : $path;
@@ -203,6 +203,10 @@ class ThumbnailMedia extends AppMedia
         $folderSlug = null,
         $skipValidation = false
     ): array {
+        if (env('ENABLED_WEBP', false) === false) {
+            return parent::handleUpload($fileUpload, $folderId, $folderSlug, $skipValidation);
+        }
+
         $request = request();
 
         if ($request->input('path')) {
