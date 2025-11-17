@@ -174,36 +174,6 @@ class ThumbnailMedia extends AppMedia
     }
 
     /**
-     * @param UploadedFile $fileUpload
-     * @param int $folderId
-     * @param string|null $folderSlug
-     * @param bool $skipValidation
-     * @param string $visibility
-     * @return JsonResponse|array
-     */
-    public function handleUpload(
-        ?UploadedFile $fileUpload,
-        int|string|null $folderId = 0,
-        ?string $folderSlug = null,
-        bool $skipValidation = false,
-        string $visibility = 'public'
-    ): array {
-        try {
-            // Gọi parent để sử dụng tất cả tính năng mới của AppMedia:
-            // - WebP conversion tự động (media_convert_image_to_webp)
-            // - Resize hình tự động (media_reduce_large_image_size, media_image_max_width/height)
-            // - Validation đầy đủ
-            // - Events và hooks
-            // - Error handling
-            return parent::handleUpload($fileUpload, $folderId, $folderSlug, $skipValidation, $visibility);
-        } catch (\Throwable $th) {
-            Log::error('ThumbnailMedia::handleUpload error: ' . $th->getMessage());
-            return [];
-        }
-        return [];
-    } // you can override this method to add your own logic
-
-    /**
      * Override để xóa cả thumbnails trong public/resize/ (từ PublicController)
      * Đảm bảo logic gốc (xóa thumbnails trong storage) vẫn được thực thi
      * 
