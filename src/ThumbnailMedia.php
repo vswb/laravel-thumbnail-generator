@@ -2,8 +2,11 @@
 
 namespace Dev\ThumbnailGenerator;
 
+use Illuminate\Contracts\Filesystem\FileExistsException;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\Routing\ResponseFactory;
 use Illuminate\Contracts\Routing\UrlGenerator;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
@@ -13,92 +16,30 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 use Exception;
+use Image;
+use League\Flysystem\FileNotFoundException;
+use Mimey\MimeTypes;
+use Throwable;
 
 use Dev\Media\Http\Resources\FileResource;
 use Dev\Media\Models\MediaFile;
 use Dev\Media\RvMedia as AppMedia;
+use Dev\Media\Repositories\Interfaces\MediaFileInterface;
+use Dev\Media\Repositories\Interfaces\MediaFolderInterface;
+use Dev\Media\Services\ThumbnailService;
+use Dev\Media\Services\UploadsManager;
 
 use function apps_cache_get;
 use function apps_cache_store;
 
 class ThumbnailMedia extends AppMedia
 {
-    /**
-     * @param string|null $url
-     * @param null $size
-     * @param bool $relativePath
-     * @param null $default
-     * @return Application|UrlGenerator|string|string[]|null
-     */
-    public function getImageUrl(
-        $url,
-        $size = null,
-        $relativePath = false,
-        $default = null
-    ) {
-        $url = trim($url);
-
-        if (empty($url)) {
-            return $default;
-        }
-
-        if (empty($size) || $url == '__value__') {
-            if ($relativePath) {
-                return $url;
-            }
-
-            return $this->url($url);
-        }
-
-        if ($url == $this->getDefaultImage()) {
-            return url($url);
-        }
-
-        if (
-            $size &&
-            array_key_exists($size, $this->getSizes()) &&
-            $this->canGenerateThumbnails($this->getMimeType($this->getRealPath($url)))
-        ) {
-            $url = str_replace(
-                File::name($url) . '.' . File::extension($url),
-                File::name($url) . '-' . $this->getSize($size) . '.' . File::extension($url),
-                $url
-            );
-        }
-
-        preg_match_all('/(.*[0-9|auto])x(.*[0-9|auto])/m', $size, $matches, PREG_SET_ORDER, 0);
-        if ($size && $this->canGenerateThumbnails($this->getMimeType($this->getRealPath($url))) && isset($matches[0]) && count($matches[0]) > 0) {
-            $matches = Arr::first($matches);
-
-            $query = '';
-            if (isset($matches[1]) && $matches[1] != 'auto') {
-                $query .= "w={$matches[1]}";
-            }
-            if (isset($matches[2]) && $matches[2] != 'auto') {
-                if (!blank($query)) {
-                    $query .= "&";
-                }
-                $query .= "h={$matches[2]}";
-            }
-
-            if (!blank($query)) {
-                $url .= "?{$query}";
-            }
-        }
-
-        if ($relativePath) {
-            return $url;
-        }
-
-        if ($url == '__image__') {
-            return $this->url($default);
-        }
-
-        return $this->url($url);
-    }
-
     /**
      * @param string|null $path
      * @return string
@@ -147,18 +88,18 @@ class ThumbnailMedia extends AppMedia
         if (Str::contains($path, '?')) {
             // Tách path và query để xử lý riêng
             [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
-            
+
             // Kiểm tra xem path đã có /resize/ chưa để tránh loop
             if (Str::contains($purePath, '/resize/')) {
                 // Đã có /resize/, chỉ cần return Storage::url với query
                 return Storage::url($path);
             }
-            
+
             // Chỉ thay thế nếu path bắt đầu bằng storage/
             if (Str::startsWith($purePath, 'storage/') || Str::startsWith($purePath, '/storage/')) {
                 $resizePath = str_replace(['storage/', '/storage/'], ['resize/storage/', '/resize/storage/'], $purePath);
                 $resizeUrl = Storage::url($resizePath);
-                
+
                 // Thêm query params vào URL
                 return $resizeUrl . ($query ? ('?' . $query) : '');
             }
@@ -221,6 +162,27 @@ class ThumbnailMedia extends AppMedia
                     'error'   => true,
                     'message' => trans('core/media::media.file_too_big', ['size' => human_file_size($maxSize)]),
                 ];
+            }
+        }
+
+        // Check image width for image files (applies to both chunk and non-chunk uploads)
+        if (!$skipValidation) {
+            $mimeType = $fileUpload->getMimeType();
+            if ($this->isImage($mimeType) && $this->canGenerateThumbnails($mimeType)) {
+                try {
+                    $image = Image::make($fileUpload->getRealPath());
+                    $width = $image->width();
+
+                    if ($width > 1920) {
+                        return [
+                            'error'   => true,
+                            'message' => trans('core/media::media.image_width_too_large', ['max_width' => 1920, 'current_width' => $width]),
+                        ];
+                    }
+                } catch (Exception $e) {
+                    // If we can't read the image, continue with upload
+                    // This handles cases where the file might be corrupted or not a valid image
+                }
             }
         }
 
@@ -327,6 +289,41 @@ class ThumbnailMedia extends AppMedia
         $physicalDeleted = $this->purgePhysicalThumbnails($file);
 
         return $parentDeleted || $physicalDeleted;
+    }
+
+    /**
+     * @param MediaFile|Model $file
+     * @return bool
+     */
+    protected function generateThumbnails(MediaFile $file): bool
+    {
+        if (!$file->canGenerateThumbnails()) {
+            return false;
+        }
+
+        $thumbnailPaths = [];
+
+        foreach ($this->getSizes() as $size) {
+            $readableSize = explode('x', $size);
+
+            $thumbnailPath = $this->thumbnailService
+                ->setImage($this->getRealPath($file->url))
+                ->setSize($readableSize[0], $readableSize[1])
+                ->setDestinationPath(File::dirname($file->url))
+                ->setFileName(File::name($file->url) . '-' . $size . '.' . File::extension($file->url))
+                ->save();
+
+            if ($thumbnailPath) {
+                $thumbnailPaths[] = $thumbnailPath;
+            }
+        }
+
+        $this->insertWatermark($file->url);
+
+        // Convert thumbnails to WebP
+        $this->convertThumbnailsToWebP($file, $thumbnailPaths);
+
+        return true;
     }
 
     /**
@@ -505,5 +502,237 @@ class ThumbnailMedia extends AppMedia
         // Dùng iterator thay vì scandir() - nhanh hơn vì không cần load toàn bộ directory
         $iterator = new \FilesystemIterator($directory, \FilesystemIterator::SKIP_DOTS);
         return !$iterator->valid();
+    }
+
+    /**
+     * Convert image to WebP format and save to database
+     * @param MediaFile $file
+     * @return MediaFile|null
+     */
+    protected function convertToWebP(MediaFile $file)
+    {
+        // Log that conversion is being attempted
+        Log::info('WebP conversion attempt', [
+            'file_id' => $file->id ?? null,
+            'file_url' => $file->url ?? null,
+            'mime_type' => $file->mime_type ?? null,
+        ]);
+
+        // Only convert jpg, jpeg, png images
+        $convertibleTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+        if (!in_array($file->mime_type, $convertibleTypes)) {
+            Log::info('Skipping WebP conversion - not a convertible type', [
+                'file_id' => $file->id ?? null,
+                'mime_type' => $file->mime_type ?? null
+            ]);
+            return null;
+        }
+
+        // Check if already converted to WebP
+        if ($file->mime_type === 'image/webp') {
+            Log::info('Skipping WebP conversion - already WebP', [
+                'file_id' => $file->id ?? null
+            ]);
+            return null;
+        }
+
+        // Check if WebP already exists
+        $webpPath = str_replace('.' . File::extension($file->url), '.webp', $file->url);
+        if (Storage::exists($webpPath)) {
+            // WebP file exists, just update the record
+            Log::info('WebP file already exists, updating record', [
+                'file_id' => $file->id ?? null,
+                'webp_path' => $webpPath
+            ]);
+            $webpData = $this->uploadManager->fileDetails($webpPath);
+        } else {
+            try {
+                $imagePath = $this->getRealPath($file->url);
+
+                Log::info('Starting WebP conversion', [
+                    'file_id' => $file->id ?? null,
+                    'original_path' => $file->url ?? null,
+                    'image_path' => $imagePath,
+                    'webp_path' => $webpPath,
+                    'storage_driver' => config('filesystems.default')
+                ]);
+
+                // Check if file exists (for local storage)
+                if (config('filesystems.default') === 'local' || config('filesystems.default') === 'public') {
+                    if (!File::exists($imagePath)) {
+                        Log::warning('Skipping WebP conversion - source file not found', [
+                            'file_id' => $file->id ?? null,
+                            'image_path' => $imagePath
+                        ]);
+                        return null;
+                    }
+                }
+
+                // Create WebP image
+                $image = Image::make($imagePath);
+
+                // Encode to WebP with quality 85 (good balance between quality and file size)
+                $webpContent = $image->encode('webp', 85);
+
+                if (!$webpContent || empty($webpContent->__toString())) {
+                    throw new Exception('WebP encoding returned empty result');
+                }
+
+                // Save WebP file
+                $this->uploadManager->saveFile($webpPath, $webpContent->__toString());
+
+                Log::info('WebP file saved successfully', [
+                    'file_id' => $file->id ?? null,
+                    'webp_path' => $webpPath
+                ]);
+
+                // Get WebP file details
+                $webpData = $this->uploadManager->fileDetails($webpPath);
+            } catch (Exception $e) {
+                // Log detailed error for debugging
+                Log::error('Failed to convert image to WebP', [
+                    'file_id' => $file->id ?? null,
+                    'file_url' => $file->url ?? null,
+                    'mime_type' => $file->mime_type ?? null,
+                    'error_message' => $e->getMessage(),
+                    'error_trace' => $e->getTraceAsString(),
+                    'gd_loaded' => extension_loaded('gd'),
+                    'imagick_loaded' => extension_loaded('imagick'),
+                ]);
+
+                // Check GD WebP support if available
+                if (extension_loaded('gd')) {
+                    $gdInfo = gd_info();
+                    Log::error('GD info', ['gd_info' => $gdInfo]);
+                }
+
+                return null;
+            }
+        }
+
+        // Use transaction to ensure data consistency
+        return DB::transaction(function () use ($file, $webpData, $webpPath) {
+            // Store original file info in options
+            $originalOptions = $file->options ?? [];
+            if (!is_array($originalOptions)) {
+                $originalOptions = [];
+            }
+            $originalOptions['original_file_url'] = $file->url;
+            $originalOptions['original_mime_type'] = $file->mime_type;
+            $originalOptions['original_size'] = $file->size;
+            $originalOptions['converted_to_webp'] = true;
+            $originalOptions['converted_at'] = now()->toDateTimeString();
+
+            // Delete original JPG/PNG file from storage
+            $originalFilePath = $file->url;
+            if (Storage::exists($originalFilePath)) {
+                Storage::delete($originalFilePath);
+            }
+
+            // Update original record to point to WebP file
+            // Ensure name has extension
+            $fileName = File::name($file->name);
+            $fileExtension = File::extension($file->url);
+            if (empty($fileExtension)) {
+                // If no extension in name, get from original mime type
+                $fileExtension = $file->mime_type === 'image/jpeg' ? 'jpg' : 'png';
+            }
+
+            $file->name = $fileName . '.webp';
+            $file->url = $webpData['url'];
+            $file->size = $webpData['size'];
+            $file->mime_type = 'image/webp';
+            $file->options = $originalOptions;
+            $file = $this->fileRepository->createOrUpdate($file);
+
+            return $file;
+        });
+    }
+
+    /**
+     * Convert thumbnails to WebP format
+     * @param MediaFile $file
+     * @param array $thumbnailPaths
+     * @return void
+     */
+    protected function convertThumbnailsToWebP(MediaFile $file, array $thumbnailPaths)
+    {
+        // Only convert if original file is jpg, jpeg, or png (before conversion)
+        $convertibleTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+        $originalMimeType = $file->mime_type;
+
+        // Check original mime type from options if already converted
+        if ($file->mime_type === 'image/webp') {
+            $options = $file->options ?? [];
+            $originalMimeType = $options['original_mime_type'] ?? 'image/jpeg';
+        }
+
+        if (!in_array($originalMimeType, $convertibleTypes)) {
+            return;
+        }
+
+        $webpThumbnails = [];
+
+        foreach ($thumbnailPaths as $thumbnailPath) {
+            try {
+                // Generate WebP path for thumbnail
+                $webpThumbnailPath = str_replace('.' . File::extension($thumbnailPath), '.webp', $thumbnailPath);
+
+                // Skip if WebP already exists
+                if (Storage::exists($webpThumbnailPath)) {
+                    $webpThumbnails[] = $webpThumbnailPath;
+                    // Delete original JPG thumbnail if WebP exists
+                    if (Storage::exists($thumbnailPath)) {
+                        Storage::delete($thumbnailPath);
+                    }
+                    continue;
+                }
+
+                // Get thumbnail file path
+                $thumbnailFilePath = $this->getRealPath($thumbnailPath);
+
+                // Check if file exists (for local storage)
+                if (config('filesystems.default') === 'local' || config('filesystems.default') === 'public') {
+                    if (!File::exists($thumbnailFilePath)) {
+                        continue;
+                    }
+                }
+
+                // Create WebP image from thumbnail
+                $thumbnailImage = Image::make($thumbnailFilePath);
+
+                // Encode to WebP with quality 85
+                $webpContent = $thumbnailImage->encode('webp', 85);
+
+                // Save WebP thumbnail
+                $this->uploadManager->saveFile($webpThumbnailPath, $webpContent->__toString());
+
+                // Delete original JPG thumbnail
+                if (Storage::exists($thumbnailPath)) {
+                    Storage::delete($thumbnailPath);
+                }
+
+                $webpThumbnails[] = $webpThumbnailPath;
+            } catch (Exception $e) {
+                // Log error but continue with other thumbnails
+                Log::error('Failed to convert thumbnail to WebP: ' . $thumbnailPath . ' - ' . $e->getMessage());
+            }
+        }
+
+        // Store WebP thumbnail paths in file options
+        if (!empty($webpThumbnails)) {
+            // Use transaction to ensure data consistency
+            DB::transaction(function () use ($file, $webpThumbnails) {
+                // Refresh file to get latest options (including WebP info from convertToWebP)
+                $file->refresh();
+                $options = $file->options ?? [];
+                if (!is_array($options)) {
+                    $options = [];
+                }
+                $options['webp_thumbnails'] = $webpThumbnails;
+                $file->options = $options;
+                $this->fileRepository->createOrUpdate($file);
+            });
+        }
     }
 }
