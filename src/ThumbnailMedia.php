@@ -37,6 +37,7 @@ use Platform\Media\Services\UploadsManager;
 
 use function apps_cache_get;
 use function apps_cache_store;
+
 class ThumbnailMedia extends AppMedia
 {
     /**
@@ -319,8 +320,19 @@ class ThumbnailMedia extends AppMedia
 
         $this->insertWatermark($file->url);
 
-        // Convert thumbnails to WebP
-        $this->convertThumbnailsToWebP($file, $thumbnailPaths);
+        // Convert to WebP if applicable
+        // Wrap in try-catch to ensure upload doesn't fail if WebP conversion fails
+        try {
+            $this->convertThumbnailsToWebP($file, $thumbnailPaths);
+        } catch (Exception $e) {
+            // Log error but don't fail upload
+            Log::error('WebP conversion failed in ThumbnailMedia', [
+                'file_id' => $file->id ?? null,
+                'file_url' => $file->url ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
 
         return true;
     }
