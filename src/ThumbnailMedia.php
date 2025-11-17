@@ -8,10 +8,12 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
 use Dev\Media\AppMedia;
 use Dev\Media\Models\MediaFile;
+
 class ThumbnailMedia extends AppMedia
 {
     /**
@@ -27,136 +29,148 @@ class ThumbnailMedia extends AppMedia
         bool $relativePath = false,
         $default = null
     ): ?string {
-        $url = trim($url);
+        try {
+            $url = trim($url);
 
-        if (empty($url)) {
-            return $default;
-        }
+            if (empty($url)) {
+                return $default;
+            }
 
-        if (empty($size) || $url == '__value__') {
+            if (empty($size) || $url == '__value__') {
+                if ($relativePath) {
+                    return $url;
+                }
+
+                return $this->url($url);
+            }
+
+            if ($url == $this->getDefaultImage(false, $size)) {
+                return url($url);
+            }
+
+            if (
+                $size &&
+                array_key_exists($size, $this->getSizes()) &&
+                $this->canGenerateThumbnails($this->getMimeType($this->getRealPath($url)))
+            ) {
+                // Cache file name và extension để tránh gọi nhiều lần
+                $fileName = File::name($url);
+                $fileExtension = File::extension($url);
+                $url = str_replace(
+                    $fileName . '.' . $fileExtension,
+                    $fileName . '-' . $this->getSize($size) . '.' . $fileExtension,
+                    $url
+                );
+            }
+
+            preg_match_all('/(.*[0-9|auto])x(.*[0-9|auto])/m', $size, $matches, PREG_SET_ORDER, 0);
+            if ($size && $this->canGenerateThumbnails($this->getMimeType($this->getRealPath($url))) && isset($matches[0]) && count($matches[0]) > 0) {
+                $matches = Arr::first($matches);
+
+                $query = '';
+                if (isset($matches[1]) && $matches[1] != 'auto') {
+                    $query .= "w={$matches[1]}";
+                }
+                if (isset($matches[2]) && $matches[2] != 'auto') {
+                    if (!blank($query)) {
+                        $query .= "&";
+                    }
+                    $query .= "h={$matches[2]}";
+                }
+
+                if (!blank($query)) {
+                    $url .= "?{$query}";
+                }
+            }
+
             if ($relativePath) {
                 return $url;
             }
 
+            if ($url == '__image__') {
+                return $this->url($default);
+            }
+
             return $this->url($url);
+        } catch (\Throwable $th) {
+            Log::error('ThumbnailMedia::getImageUrl error: ' . $th->getMessage());
+            return '';
         }
-
-        if ($url == $this->getDefaultImage(false, $size)) {
-            return url($url);
-        }
-
-        if (
-            $size &&
-            array_key_exists($size, $this->getSizes()) &&
-            $this->canGenerateThumbnails($this->getMimeType($this->getRealPath($url)))
-        ) {
-            // Cache file name và extension để tránh gọi nhiều lần
-            $fileName = File::name($url);
-            $fileExtension = File::extension($url);
-            $url = str_replace(
-                $fileName . '.' . $fileExtension,
-                $fileName . '-' . $this->getSize($size) . '.' . $fileExtension,
-                $url
-            );
-        }
-
-        preg_match_all('/(.*[0-9|auto])x(.*[0-9|auto])/m', $size, $matches, PREG_SET_ORDER, 0);
-        if ($size && $this->canGenerateThumbnails($this->getMimeType($this->getRealPath($url))) && isset($matches[0]) && count($matches[0]) > 0) {
-            $matches = Arr::first($matches);
-
-            $query = '';
-            if (isset($matches[1]) && $matches[1] != 'auto') {
-                $query .= "w={$matches[1]}";
-            }
-            if (isset($matches[2]) && $matches[2] != 'auto') {
-                if (!blank($query)) {
-                    $query .= "&";
-                }
-                $query .= "h={$matches[2]}";
-            }
-
-            if (!blank($query)) {
-                $url .= "?{$query}";
-            }
-        }
-
-        if ($relativePath) {
-            return $url;
-        }
-
-        if ($url == '__image__') {
-            return $this->url($default);
-        }
-
-        return $this->url($url);
+        return '';
     }
 
     public function url(?string $path): string
     {
-        $path = $path ? trim($path) : $path;
+        try {
+            $path = $path ? trim($path) : $path;
 
-        if (Str::contains($path, ['http://', 'https://'])) {
-            return $path;
-        }
+            if (Str::contains($path, ['http://', 'https://'])) {
+                return $path;
+            }
 
-        /* Prefer .webp if exists for jpg/jpeg/png */
-        // Chỉ check WebP với local storage để tránh chậm với cloud storage
-        if (!empty($path) && !$this->isUsingCloud()) {
-            [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
-            $ext = strtolower(pathinfo($purePath, PATHINFO_EXTENSION));
+            /* Prefer .webp if exists for jpg/jpeg/png */
+            // Chỉ check WebP với local storage để tránh chậm với cloud storage
+            if (!empty($path) && !$this->isUsingCloud()) {
+                [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
+                $ext = strtolower(pathinfo($purePath, PATHINFO_EXTENSION));
 
-            if (in_array($ext, ['jpg', 'jpeg', 'png'], true)) {
-                $webpPath = substr($purePath, 0, -strlen($ext)) . 'webp';
+                if (in_array($ext, ['jpg', 'jpeg', 'png'], true)) {
+                    $webpPath = substr($purePath, 0, -strlen($ext)) . 'webp';
 
-                if (Storage::exists($webpPath)) {
-                    $path = $webpPath . ($query ? ('?' . $query) : '');
+                    if (Storage::exists($webpPath)) {
+                        $path = $webpPath . ($query ? ('?' . $query) : '');
+                    }
                 }
             }
-        }
-        $doSpacesEnabled = $this->getMediaDriver() === 'do_spaces' && (int) setting('media_do_spaces_cdn_enabled');
-        if ($doSpacesEnabled) {
-            $customDomain = setting('media_do_spaces_cdn_custom_domain');
+            $doSpacesEnabled = $this->getMediaDriver() === 'do_spaces' && (int) setting('media_do_spaces_cdn_enabled');
+            if ($doSpacesEnabled) {
+                $customDomain = setting('media_do_spaces_cdn_custom_domain');
 
-            if ($customDomain) {
-                return $customDomain . '/' . ltrim($path, '/');
-            }
-
-            return str_replace('.digitaloceanspaces.com', '.cdn.digitaloceanspaces.com', Storage::url($path));
-        } else {
-            if ($this->getMediaDriver() === 'backblaze' && (int) setting('media_backblaze_cdn_enabled')) {
-                $customDomain = setting('media_backblaze_cdn_custom_domain');
-                $currentEndpoint = setting('media_backblaze_endpoint');
                 if ($customDomain) {
                     return $customDomain . '/' . ltrim($path, '/');
                 }
 
-                return str_replace($currentEndpoint, $customDomain, Storage::url($path));
+                return str_replace('.digitaloceanspaces.com', '.cdn.digitaloceanspaces.com', Storage::url($path));
+            } else {
+                if ($this->getMediaDriver() === 'backblaze' && (int) setting('media_backblaze_cdn_enabled')) {
+                    $customDomain = setting('media_backblaze_cdn_custom_domain');
+                    $currentEndpoint = setting('media_backblaze_endpoint');
+                    if ($customDomain) {
+                        return $customDomain . '/' . ltrim($path, '/');
+                    }
+
+                    return str_replace($currentEndpoint, $customDomain, Storage::url($path));
+                }
             }
+
+            // Nếu path có query params (từ getImageUrl), redirect đến resize endpoint
+            // Ví dụ: storage/news/image.jpg?w=300&h=200 → /resize/storage/news/image.jpg?w=300&h=200
+            if (str_contains($path, '?')) {
+                // Tách path và query để xử lý riêng
+                [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
+
+                // Kiểm tra xem path đã có /resize/ chưa để tránh loop
+                if (Str::contains($purePath, '/resize/')) {
+                    // Đã có /resize/, chỉ cần return Storage::url với query
+                    return Storage::url($path);
+                }
+
+                // Chỉ thay thế nếu path bắt đầu bằng storage/
+                if (Str::startsWith($purePath, 'storage/') || Str::startsWith($purePath, '/storage/')) {
+                    $resizePath = str_replace(['storage/', '/storage/'], ['resize/storage/', '/resize/storage/'], $purePath);
+                    $resizeUrl = Storage::url($resizePath);
+
+                    // Thêm query params vào URL
+                    return $resizeUrl . ($query ? ('?' . $query) : '');
+                }
+            }
+
+            return Storage::url($path);
+        } catch (\Throwable $th) {
+            Log::error('ThumbnailMedia::url error: ' . $th->getMessage());
+            return '';
         }
-
-        // Nếu path có query params (từ getImageUrl), redirect đến resize endpoint
-        // Ví dụ: storage/news/image.jpg?w=300&h=200 → /resize/storage/news/image.jpg?w=300&h=200
-        if (str_contains($path, '?')) {
-            // Tách path và query để xử lý riêng
-            [$purePath, $query] = array_pad(explode('?', $path, 2), 2, null);
-
-            // Kiểm tra xem path đã có /resize/ chưa để tránh loop
-            if (Str::contains($purePath, '/resize/')) {
-                // Đã có /resize/, chỉ cần return Storage::url với query
-                return Storage::url($path);
-            }
-
-            // Chỉ thay thế nếu path bắt đầu bằng storage/
-            if (Str::startsWith($purePath, 'storage/') || Str::startsWith($purePath, '/storage/')) {
-                $resizePath = str_replace(['storage/', '/storage/'], ['resize/storage/', '/resize/storage/'], $purePath);
-                $resizeUrl = Storage::url($resizePath);
-
-                // Thêm query params vào URL
-                return $resizeUrl . ($query ? ('?' . $query) : '');
-            }
-        }
-
-        return Storage::url($path);
+        return '';
     }
 
     /**
@@ -192,16 +206,22 @@ class ThumbnailMedia extends AppMedia
      */
     public function deleteThumbnails(MediaFile $file): bool
     {
-        // 1. Gọi parent để xóa thumbnails trong storage (logic gốc từ AppMedia)
-        // Xóa các file theo pattern: filename-{size}.ext trong storage
-        $parentDeleted = parent::deleteThumbnails($file);
+        try {
+            // 1. Gọi parent để xóa thumbnails trong storage (logic gốc từ AppMedia)
+            // Xóa các file theo pattern: filename-{size}.ext trong storage
+            $parentDeleted = parent::deleteThumbnails($file);
 
-        // 2. Xóa thumbnails vật lý trong public/resize/ (logic mới từ ThumbnailGenerator)
-        // Xóa các file theo pattern: resize/{width}x{height}/{subPath}/{normalized}-{hash}.ext
-        $physicalDeleted = $this->purgePhysicalThumbnails($file);
+            // 2. Xóa thumbnails vật lý trong public/resize/ (logic mới từ ThumbnailGenerator)
+            // Xóa các file theo pattern: resize/{width}x{height}/{subPath}/{normalized}-{hash}.ext
+            $physicalDeleted = $this->purgePhysicalThumbnails($file);
 
-        // Trả về true nếu có ít nhất một loại thumbnail được xóa
-        return $parentDeleted || $physicalDeleted;
+            // Trả về true nếu có ít nhất một loại thumbnail được xóa
+            return $parentDeleted || $physicalDeleted;
+        } catch (\Throwable $th) {
+            Log::error('ThumbnailMedia::deleteThumbnails error: ' . $th->getMessage());
+            return false;
+        }
+        return false;
     }
 
     /**

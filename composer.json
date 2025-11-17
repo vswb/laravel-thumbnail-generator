@@ -1,26 +1,29 @@
 {
-    "name": "dev-extensions/thumbnail-generator",
-    "description": "Media thumbnails generator plugin",
-    "type": "library",
-    "license": "MIT",
-    "autoload": {
-        "psr-4": {
-            "Dev\\ThumbnailGenerator\\": "src/"
-        }
-    },
-    "config": {
-        "sort-packages": true
-    },
-    "extra": {
-        "laravel": {
-            "providers": [
-                "Dev\\ThumbnailGenerator\\Providers\\ThumbnailGeneratorServiceProvider"
-            ],
-            "aliases": {
-                "ThumbnailMedia": "Dev\\ThumbnailGenerator\\Facades\\ThumbnailMediaFacade"
-            }
-        }
-    },
-    "minimum-stability": "dev",
-    "prefer-stable": true
+  "name": "dev-extensions/thumbnail-generator",
+  "description": "Media thumbnails generator plugin",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "dev-extensions/kernel": "v7.x-dev"
+  },
+  "autoload": {
+    "psr-4": {
+      "Dev\\ThumbnailGenerator\\": "src/"
+    }
+  },
+  "config": {
+    "sort-packages": true
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Dev\\ThumbnailGenerator\\Providers\\ThumbnailGeneratorServiceProvider"
+      ],
+      "aliases": {
+        "ThumbnailMedia": "Dev\\ThumbnailGenerator\\Facades\\ThumbnailMediaFacade"
+      }
+    }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
 }
