@@ -188,13 +188,19 @@ class ThumbnailMedia extends AppMedia
         bool $skipValidation = false,
         string $visibility = 'public'
     ): array {
-        // Gọi parent để sử dụng tất cả tính năng mới của AppMedia:
-        // - WebP conversion tự động (media_convert_image_to_webp)
-        // - Resize hình tự động (media_reduce_large_image_size, media_image_max_width/height)
-        // - Validation đầy đủ
-        // - Events và hooks
-        // - Error handling
-        return parent::handleUpload($fileUpload, $folderId, $folderSlug, $skipValidation, $visibility);
+        try {
+            // Gọi parent để sử dụng tất cả tính năng mới của AppMedia:
+            // - WebP conversion tự động (media_convert_image_to_webp)
+            // - Resize hình tự động (media_reduce_large_image_size, media_image_max_width/height)
+            // - Validation đầy đủ
+            // - Events và hooks
+            // - Error handling
+            return parent::handleUpload($fileUpload, $folderId, $folderSlug, $skipValidation, $visibility);
+        } catch (\Throwable $th) {
+            Log::error('ThumbnailMedia::handleUpload error: ' . $th->getMessage());
+            return [];
+        }
+        return [];
     } // you can override this method to add your own logic
 
     /**
