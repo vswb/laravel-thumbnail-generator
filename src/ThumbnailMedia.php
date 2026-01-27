@@ -381,7 +381,7 @@ class ThumbnailMedia extends AppMedia
      * @param MediaFile|Model $file
      * @return bool
      */
-    protected function generateThumbnails(MediaFile $file): bool
+    public function generateThumbnails(MediaFile $file): bool
     {
         if (!$file->canGenerateThumbnails()) {
             return false;
