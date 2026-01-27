@@ -119,10 +119,15 @@ class ThumbnailMedia extends AppMedia
     }
 
     /**
+     * Generate the URL for a given path, with WebP and resize support
+     * Hàm này đang làm cho URL bị redirect vòng lặp khi dùng với getImageUrl có query params
+     * 
+     * Tạm rename để tranh xung đột với parent::url()
+     * 
      * @param string|null $path
      * @return string
      */
-    public function url(?string $path): string
+    public function url_tmp(?string $path): string
     {
         if (env('ENABLED_WEBP', false) === false) {
             return parent::url($path);
