@@ -1,4 +1,25 @@
 <?php
+/**
+ * (c) Copyright 2026 VISUAL WEBER COMPANY LIMITED. All rights reserved.
+ * Distributed by: VISUAL WEBER CO., LTD.
+ * * [PRODUCT INFORMATION]
+ * This software is a proprietary product developed by Visual Weber.
+ * All rights to the software and its components are reserved under 
+ * Intellectual Property laws.
+ * * [TERMS OF USE]
+ * Usage is permitted strictly according to the License Agreement 
+ * between Visual Weber and the Client.
+ * -------------------------------------------------------------------------
+ * (c) Bản quyền thuộc về CÔNG TY TNHH VISUAL WEBER 2026. Bảo lưu mọi quyền.
+ * Phát hành bởi: Công ty TNHH Visual Weber.
+ * * [THÔNG TIN SẢN PHẨM]
+ * Phần mềm này là sản phẩm độc quyền được phát triển bởi Visual Weber.
+ * Mọi quyền đối với phần mềm và các thành phần cấu thành đều được bảo hộ 
+ * theo luật Sở hữu trí tuệ.
+ * * [ĐIỀU KHOẢN SỬ DỤNG]
+ * Việc sử dụng được giới hạn nghiêm ngặt theo Hợp đồng cung cấp dịch vụ/phần mềm 
+ * giữa Visual Weber và Khách hàng.
+ */
 
 namespace Dev\ThumbnailGenerator;
 
@@ -160,7 +181,7 @@ class ThumbnailMedia extends AppMedia
         }
 
         // DigitalOcean Spaces CDN support
-        if (config('filesystems.default') === 'do_spaces' && (int)setting('media_do_spaces_cdn_enabled')) {
+        if (config('filesystems.default') === 'do_spaces' && (int) setting('media_do_spaces_cdn_enabled')) {
             $customDomain = setting('media_do_spaces_cdn_custom_domain');
 
             if ($customDomain) {
@@ -220,7 +241,7 @@ class ThumbnailMedia extends AppMedia
 
         if (!$fileUpload) {
             return [
-                'error'   => true,
+                'error' => true,
                 'message' => trans('core/media::media.can_not_detect_file_type'),
             ];
         }
@@ -237,7 +258,7 @@ class ThumbnailMedia extends AppMedia
 
                 if ($validator->fails()) {
                     return [
-                        'error'   => true,
+                        'error' => true,
                         'message' => $validator->getMessageBag()->first(),
                     ];
                 }
@@ -248,9 +269,9 @@ class ThumbnailMedia extends AppMedia
 
             $maxSize = apply_filters('handle_filter_value_maxsize', $this->getServerConfigMaxUploadFileSize(), $fileUpload->getClientOriginalExtension());
 
-            if ($fileUpload->getSize() / 1024 > (int)$maxSize) {
+            if ($fileUpload->getSize() / 1024 > (int) $maxSize) {
                 return [
-                    'error'   => true,
+                    'error' => true,
                     'message' => trans('core/media::media.file_too_big', ['size' => human_file_size($maxSize)]),
                 ];
             }
@@ -266,7 +287,7 @@ class ThumbnailMedia extends AppMedia
 
                     if ($width > 1920) {
                         return [
-                            'error'   => true,
+                            'error' => true,
                             'message' => trans('core/media::media.image_width_too_large', ['max_width' => 1920, 'current_width' => $width]),
                         ];
                     }
@@ -284,7 +305,7 @@ class ThumbnailMedia extends AppMedia
 
             if (!$skipValidation && !in_array(strtolower($fileExtension), explode(',', $allowedMimeTypes))) {
                 return [
-                    'error'   => true,
+                    'error' => true,
                     'message' => trans('core/media::media.can_not_detect_file_type'),
                 ];
             }
@@ -294,9 +315,9 @@ class ThumbnailMedia extends AppMedia
 
                 if (!$folder) {
                     $folder = $this->folderRepository->createOrUpdate([
-                        'user_id'   => Auth::check() ? Auth::id() : 0,
-                        'name'      => $this->folderRepository->createName($folderSlug, 0),
-                        'slug'      => $this->folderRepository->createSlug($folderSlug, 0),
+                        'user_id' => Auth::check() ? Auth::id() : 0,
+                        'name' => $this->folderRepository->createName($folderSlug, 0),
+                        'slug' => $this->folderRepository->createSlug($folderSlug, 0),
                         'parent_id' => 0,
                     ]);
                 }
@@ -331,7 +352,7 @@ class ThumbnailMedia extends AppMedia
 
             if (!$skipValidation && empty($data['mime_type'])) {
                 return [
-                    'error'   => true,
+                    'error' => true,
                     'message' => trans('core/media::media.can_not_detect_file_type'),
                 ];
             }
@@ -364,11 +385,11 @@ class ThumbnailMedia extends AppMedia
 
             return [
                 'error' => false,
-                'data'  => new FileResource($file),
+                'data' => new FileResource($file),
             ];
         } catch (Exception $exception) {
             return [
-                'error'   => true,
+                'error' => true,
                 'message' => $exception->getMessage(),
             ];
         }
@@ -447,7 +468,7 @@ class ThumbnailMedia extends AppMedia
 
         $basePath = public_path('resize');
 
-        if (! File::isDirectory($basePath)) {
+        if (!File::isDirectory($basePath)) {
             return false;
         }
 
@@ -597,7 +618,7 @@ class ThumbnailMedia extends AppMedia
      */
     protected function isDirectoryEmpty(string $directory): bool
     {
-        if (! File::isDirectory($directory)) {
+        if (!File::isDirectory($directory)) {
             return true;
         }
 
