@@ -1,12 +1,25 @@
 <?php
 /**
- * Hàm này dùng để lấy danh sách dung lượng tối đa (theo từng loại mime) cho phép upload,
- * được cấu hình thông qua cài đặt (setting 'media_config_mimesize').
- * Kết quả trả về là một collection chứa các giá trị dung lượng tối đa cho từng loại mime.
- *
- * @return \Illuminate\Support\Collection
+ * (c) Copyright 2026 VISUAL WEBER COMPANY LIMITED. All rights reserved.
+ * Distributed by: VISUAL WEBER CO., LTD.
+ * * [PRODUCT INFORMATION]
+ * This software is a proprietary product developed by Visual Weber.
+ * All rights to the software and its components are reserved under 
+ * Intellectual Property laws.
+ * * [TERMS OF USE]
+ * Usage is permitted strictly according to the License Agreement 
+ * between Visual Weber and the Client.
+ * -------------------------------------------------------------------------
+ * (c) Bản quyền thuộc về CÔNG TY TNHH VISUAL WEBER 2026. Bảo lưu mọi quyền.
+ * Phát hành bởi: Công ty TNHH Visual Weber.
+ * * [THÔNG TIN SẢN PHẨM]
+ * Phần mềm này là sản phẩm độc quyền được phát triển bởi Visual Weber.
+ * Mọi quyền đối với phần mềm và các thành phần cấu thành đều được bảo hộ 
+ * theo luật Sở hữu trí tuệ.
+ * * [ĐIỀU KHOẢN SỬ DỤNG]
+ * Việc sử dụng được giới hạn nghiêm ngặt theo Hợp đồng cung cấp dịch vụ/phần mềm 
+ * giữa Visual Weber và Khách hàng.
  */
-
 if (!function_exists('apps_get_thumbnail_generation')) {
     /**
      * @param string $image
