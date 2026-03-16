@@ -3,7 +3,6 @@
     "description": "Media thumbnails generator plugin",
     "type": "package",
     "require": {
-        "laravel/framework": "^7.0",
         "intervention/image": "^2.6",
         "dev-extensions/kernel": "dev-lte.6x-is_dev"
     },
